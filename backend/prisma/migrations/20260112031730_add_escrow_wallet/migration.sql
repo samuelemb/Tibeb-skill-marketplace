@@ -1,0 +1,1 @@
+-- No-op: keep generated search_vector column intact

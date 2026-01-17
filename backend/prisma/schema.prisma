@@ -1,0 +1,403 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CLIENT
+  FREELANCER
+  ADMIN
+}
+
+enum JobStatus {
+  DRAFT
+  OPEN
+  CONTRACTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum ProposalStatus {
+  PENDING
+  OFFERED
+  ACCEPTED
+  REJECTED
+}
+
+enum ContractStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum JobCategory {
+  WEB_DEVELOPMENT
+  MOBILE_DEVELOPMENT
+  DESIGN
+  WRITING
+  MARKETING
+  DATA_ANALYTICS
+  CONSULTING
+  OTHER
+}
+
+model User {
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  password            String // hashed with bcrypt
+  firstName           String
+  lastName            String
+  avatarUrl           String? // Optional avatar image URL
+  role                UserRole  // Immutable - set on registration (BR-1)
+  isSuspended         Boolean   @default(false)
+  suspendedReason     String?
+  suspendedAt         DateTime?
+  emailVerified       Boolean   @default(false)
+  emailVerificationCode String? // 6-digit OTP code
+  emailVerificationCodeExpiresAt DateTime? // 10 minutes expiry
+  emailVerificationAttempts Int @default(0) // Track failed attempts
+  emailVerificationAttemptsExpiresAt DateTime? // Reset attempts after period
+  passwordResetCode String? // 6-digit OTP code
+  passwordResetCodeExpiresAt DateTime? // 10 minutes expiry
+  passwordResetAttempts Int @default(0) // Track failed attempts
+  passwordResetAttemptsExpiresAt DateTime? // Reset attempts after period
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relations
+  jobsPosted            Job[]          @relation("JobPoster")
+  proposals             Proposal[]
+  contracts             Contract[]     @relation("Client")
+  contractsAsFreelancer Contract[]     @relation("Freelancer")
+  sentMessages          Message[]      @relation("SentMessages")
+  receivedMessages      Message[]      @relation("ReceivedMessages")
+  notifications         Notification[]
+  reviewsGiven          Review[]       @relation("Reviewer")
+  reviewsReceived       Review[]       @relation("Reviewee")
+  skills                UserSkill[]
+  portfolioItems        PortfolioItem[]
+  wallet                Wallet?
+  escrowsAsClient        EscrowPayment[] @relation("EscrowClient")
+  escrowsAsFreelancer    EscrowPayment[] @relation("EscrowFreelancer")
+  escrowDisputesRaised   EscrowDispute[] @relation("EscrowDisputesRaised")
+  auditLogs             AuditLog[] @relation("AuditActor")
+
+  @@map("users")
+}
+
+model Job {
+  id          String      @id @default(cuid())
+  title       String
+  description String      @db.Text
+  budget      Float? // Optional for now
+  status      JobStatus   @default(DRAFT)
+  category    JobCategory @default(OTHER)
+  clientId    String
+  searchVector Unsupported("tsvector")? @map("search_vector")
+  isHidden    Boolean     @default(false)
+  hiddenReason String?
+  hiddenAt    DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  client    User       @relation("JobPoster", fields: [clientId], references: [id], onDelete: Cascade)
+  proposals Proposal[]
+  contract  Contract?
+  messages  Message[]
+  reviews   Review[]
+  escrowPayments EscrowPayment[]
+  escrowDisputes EscrowDispute[]
+
+  @@index([clientId])
+  @@index([status])
+  @@index([category])
+  @@index([status, category, createdAt])
+  @@index([status, budget])
+  @@map("jobs")
+}
+
+model Proposal {
+  id             String         @id @default(cuid())
+  jobId          String
+  freelancerId   String
+  message        String         @db.Text
+  proposedAmount Float? // Optional
+  status         ProposalStatus @default(PENDING)
+  isHidden       Boolean        @default(false)
+  hiddenReason   String?
+  hiddenAt       DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  // Relations
+  job        Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  freelancer User      @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+  contract   Contract?
+
+  @@unique([jobId, freelancerId]) // One proposal per freelancer per job
+  @@index([jobId])
+  @@index([freelancerId])
+  @@index([status])
+  @@map("proposals")
+}
+
+model Contract {
+  id           String         @id @default(cuid())
+  jobId        String         @unique
+  proposalId   String         @unique
+  clientId     String
+  freelancerId String
+  status       ContractStatus @default(ACTIVE)
+  agreedAmount Float?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  completedAt  DateTime?
+
+  // Relations
+  job        Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  proposal   Proposal  @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  client     User      @relation("Client", fields: [clientId], references: [id], onDelete: Cascade)
+  freelancer User      @relation("Freelancer", fields: [freelancerId], references: [id], onDelete: Cascade)
+  escrowPayments EscrowPayment[]
+  messages   Message[]
+  escrowDisputes EscrowDispute[]
+
+  @@index([clientId])
+  @@index([freelancerId])
+  @@index([status])
+  @@map("contracts")
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  jobId      String? // Nullable - can be job or contract messages
+  contractId String? // Nullable - contract messages
+  senderId   String
+  receiverId String
+  content    String   @db.Text
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  // Relations
+  sender   User      @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User      @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  job      Job?      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  contract Contract? @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([contractId])
+  @@index([senderId, receiverId])
+  @@index([receiverId, isRead])
+  @@map("messages")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String // "message", "proposal", "proposal_accepted", "job_status_change"
+  title     String
+  message   String   @db.Text
+  link      String? // URL to relevant page
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  jobId      String
+  reviewerId String
+  revieweeId String
+  rating     Int      // 1-5
+  comment    String?  @db.Text // Optional comment
+  isHidden   Boolean  @default(false)
+  hiddenReason String?
+  hiddenAt   DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  job      Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  reviewer User @relation("Reviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewee User @relation("Reviewee", fields: [revieweeId], references: [id], onDelete: Cascade)
+
+  // One review per reviewer per job (each user can review the other party only once per job)
+  @@unique([jobId, reviewerId])
+  @@index([jobId])
+  @@index([reviewerId])
+  @@index([revieweeId])
+  @@index([rating])
+  @@map("reviews")
+}
+
+model Skill {
+  id        String     @id @default(cuid())
+  name      String     @unique // e.g., "React", "Node.js", "UI/UX Design"
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Relations
+  users     UserSkill[]
+
+  @@index([name])
+  @@map("skills")
+}
+
+model UserSkill {
+  id        String   @id @default(cuid())
+  userId    String
+  skillId   String
+  createdAt DateTime @default(now())
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill     Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  // One skill per user (user can't have the same skill twice)
+  @@unique([userId, skillId])
+  @@index([userId])
+  @@index([skillId])
+  @@map("user_skills")
+}
+
+model PortfolioItem {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  description String   @db.Text
+  imageUrl    String?  // Optional portfolio image
+  projectUrl  String?  // Optional link to live project
+  technologies String? @db.Text // Comma-separated or JSON string of technologies used
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("portfolio_items")
+}
+
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  balance   Decimal  @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id        String   @id @default(cuid())
+  walletId  String
+  type      String
+  amount    Decimal
+  currency  String   @default("ETB")
+  reference String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId])
+  @@map("wallet_transactions")
+}
+
+model EscrowPayment {
+  id          String   @id @default(cuid())
+  jobId       String
+  contractId  String
+  clientId    String
+  freelancerId String
+  amount      Decimal
+  platformFee Decimal
+  currency    String   @default("ETB")
+  status      String
+  txRef       String   @unique
+  checkoutUrl String?
+  paidAt      DateTime?
+  refundedAt  DateTime?
+  releasedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  job        Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  client     User     @relation("EscrowClient", fields: [clientId], references: [id], onDelete: Cascade)
+  freelancer User     @relation("EscrowFreelancer", fields: [freelancerId], references: [id], onDelete: Cascade)
+  disputes   EscrowDispute[]
+
+  @@index([jobId])
+  @@index([clientId])
+  @@index([freelancerId])
+  @@map("escrow_payments")
+}
+
+enum EscrowDisputeType {
+  REFUND_REQUEST
+  DISPUTE
+}
+
+enum EscrowDisputeStatus {
+  OPEN
+  RESOLVED
+  REJECTED
+}
+
+model EscrowDispute {
+  id             String   @id @default(cuid())
+  escrowPaymentId String
+  jobId          String
+  contractId     String
+  raisedById     String
+  type           EscrowDisputeType
+  status         EscrowDisputeStatus @default(OPEN)
+  reason         String?  @db.Text
+  createdAt      DateTime @default(now())
+  resolvedAt     DateTime?
+
+  escrowPayment EscrowPayment @relation(fields: [escrowPaymentId], references: [id], onDelete: Cascade)
+  job           Job           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  contract      Contract      @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  raisedBy      User          @relation("EscrowDisputesRaised", fields: [raisedById], references: [id], onDelete: Cascade)
+
+  @@index([escrowPaymentId])
+  @@index([jobId])
+  @@index([contractId])
+  @@index([raisedById])
+  @@map("escrow_disputes")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  actor User @relation("AuditActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
