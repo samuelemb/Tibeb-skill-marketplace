@@ -115,8 +115,8 @@ const PortfolioManager: React.FC = () => {
       data: {
         title: data.title,
         description: data.description,
-        projectUrl: data.projectUrl || null,
-        technologies: data.technologies || null,
+        projectUrl: data.projectUrl || undefined,
+        technologies: data.technologies || undefined,
       },
     });
   };

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { Suspense, useState, useEffect, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
@@ -134,7 +134,7 @@ const Messages: React.FC = () => {
               job: list[existingIndex].job || (incoming as Message & { job?: Conversation['job'] }).job,
             }
           : {
-              jobId: incoming.jobId,
+              jobId: incoming.jobId ?? "",
               job: (incoming as Message & { job?: Conversation['job'] }).job,
               otherUser,
               lastMessage: incoming,
@@ -428,4 +428,12 @@ const Messages: React.FC = () => {
   );
 };
 
-export default Messages;
+const MessagesPage: React.FC = () => (
+  <Suspense
+    fallback={<div className="min-h-screen flex items-center justify-center text-gray-500">Loading messages...</div>}
+  >
+    <Messages />
+  </Suspense>
+);
+
+export default MessagesPage;

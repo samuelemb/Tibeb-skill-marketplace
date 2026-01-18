@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import Header from '@/components/layout/Header';
@@ -345,4 +345,12 @@ const JobsList: React.FC = () => {
   );
 };
 
-export default JobsList;
+const JobsPage: React.FC = () => (
+  <Suspense
+    fallback={<div className="min-h-screen flex items-center justify-center text-gray-500">Loading jobs...</div>}
+  >
+    <JobsList />
+  </Suspense>
+);
+
+export default JobsPage;

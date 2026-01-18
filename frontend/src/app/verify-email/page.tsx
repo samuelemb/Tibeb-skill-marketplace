@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { Suspense, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Footer from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
@@ -204,4 +204,12 @@ const VerifyEmail: React.FC = () => {
   );
 };
 
-export default VerifyEmail;
+const VerifyEmailPage: React.FC = () => (
+  <Suspense
+    fallback={<div className="min-h-screen flex items-center justify-center text-gray-500">Loading verification...</div>}
+  >
+    <VerifyEmail />
+  </Suspense>
+);
+
+export default VerifyEmailPage;

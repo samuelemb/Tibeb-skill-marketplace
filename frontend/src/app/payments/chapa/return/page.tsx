@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -121,4 +121,12 @@ const ChapaReturn: React.FC = () => {
   );
 };
 
-export default ChapaReturn;
+const ChapaReturnPage: React.FC = () => (
+  <Suspense
+    fallback={<div className="min-h-screen flex items-center justify-center text-gray-500">Loading payment status...</div>}
+  >
+    <ChapaReturn />
+  </Suspense>
+);
+
+export default ChapaReturnPage;

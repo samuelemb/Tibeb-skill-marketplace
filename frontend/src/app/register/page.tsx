@@ -1,6 +1,7 @@
 "use client";
+type RegisterRole = "CLIENT" | "FREELANCER";
 
-import React, { useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -131,7 +132,7 @@ const Register: React.FC = () => {
                   <Label>I want to</Label>
                   <RadioGroup
                     value={selectedRole}
-                    onValueChange={(value) => setValue('role', value as UserRole)}
+                    onValueChange={(value) => setValue("role", value as RegisterRole)}
                     className="grid grid-cols-2 gap-4"
                   >
                     <div>
@@ -305,4 +306,12 @@ const Register: React.FC = () => {
   );
 };
 
-export default Register;
+const RegisterPage: React.FC = () => (
+  <Suspense
+    fallback={<div className="min-h-screen flex items-center justify-center text-gray-500">Loading registration...</div>}
+  >
+    <Register />
+  </Suspense>
+);
+
+export default RegisterPage;

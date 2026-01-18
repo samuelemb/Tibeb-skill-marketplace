@@ -300,7 +300,7 @@ const JobDetail: React.FC = () => {
       jobId: id,
       revieweeId,
       rating: data.rating,
-      comment: data.comment,
+      comment: data.comment ?? "",
     });
   };
   if (job.status === 'DRAFT' && !isOwner) {
