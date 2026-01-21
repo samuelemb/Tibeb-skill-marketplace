@@ -14,7 +14,6 @@ import { toast } from 'sonner';
 import {
   FileText,
   Clock,
-  DollarSign,
   CheckCircle,
   XCircle,
   AlertCircle,
@@ -134,7 +133,9 @@ const MyProposals: React.FC = () => {
               {proposal.job?.title || 'Job'}
             </h3>
             <p className="text-sm text-gray-500">
-              {proposal.job?.client?.company || 'Client'}
+              {proposal.job?.client?.firstName
+                ? `${proposal.job.client.firstName} ${proposal.job.client.lastName}`
+                : 'Client'}
             </p>
           </div>
           {getStatusBadge(proposal.status)}
@@ -143,11 +144,22 @@ const MyProposals: React.FC = () => {
         <p className="text-gray-600 mb-4 line-clamp-2">
           {proposal.message}
         </p>
+        {proposal.relevantExperience && (
+          <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+            <span className="font-medium text-gray-700">Relevant experience:</span>{' '}
+            {proposal.relevantExperience}
+          </p>
+        )}
+        {proposal.deliveryTime && (
+          <p className="text-sm text-gray-600 mb-4">
+            <span className="font-medium text-gray-700">Delivery time:</span>{' '}
+            {proposal.deliveryTime}
+          </p>
+        )}
 
         <div className="flex items-center gap-6 text-sm text-gray-600 mb-4">
           {proposal.proposedAmount !== null && proposal.proposedAmount !== undefined && (
             <span className="flex items-center gap-1">
-              <DollarSign className="h-4 w-4 text-indigo-600" />
               <span className="font-medium">Br {proposal.proposedAmount}</span>
             </span>
           )}

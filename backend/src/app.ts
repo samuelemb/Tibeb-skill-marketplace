@@ -18,6 +18,7 @@ import userRoutes from './routes/users';
 import paymentRoutes from './routes/payments';
 import walletRoutes from './routes/wallet';
 import adminRoutes from './routes/admin';
+import healthRoutes from './routes/health';
 
 dotenv.config();
 
@@ -63,6 +64,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/health', healthRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

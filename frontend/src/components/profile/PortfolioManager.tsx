@@ -19,7 +19,11 @@ import type { PortfolioItem } from '@/types';
 
 const portfolioSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200, 'Title is too long'),
-  description: z.string().min(10, 'Description must be at least 10 characters').max(2000, 'Description is too long'),
+  description: z
+    .string()
+    .min(50, 'Description must be at least 50 characters')
+    .max(2000, 'Description is too long')
+    .refine((value) => !/^\d+$/.test(value.trim()), 'Description cannot be only numbers'),
   projectUrl: z.string().url('Project URL must be valid').max(500, 'Project URL is too long').optional().or(z.literal('')),
   technologies: z.string().max(500, 'Technologies is too long').optional(),
 });

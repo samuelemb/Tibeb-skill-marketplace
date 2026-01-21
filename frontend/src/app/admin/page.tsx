@@ -39,6 +39,8 @@ const AdminPage = () => {
   const [reviewId, setReviewId] = useState('');
   const [escrowJobId, setEscrowJobId] = useState('');
   const [reason, setReason] = useState('');
+  const [reports, setReports] = useState<any[]>([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
 
   const handleAction = async (action: () => Promise<void>, successMessage: string) => {
     try {
@@ -46,6 +48,18 @@ const AdminPage = () => {
       toast.success(successMessage);
     } catch (error: any) {
       toast.error(error.message || 'Action failed');
+    }
+  };
+
+  const loadReports = async () => {
+    setReportsLoading(true);
+    try {
+      const response = await adminRequest('/admin/reports?status=OPEN', 'GET');
+      setReports(response.data || []);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to load reports');
+    } finally {
+      setReportsLoading(false);
     }
   };
 
@@ -80,6 +94,7 @@ const AdminPage = () => {
                 <TabsTrigger value="proposals">Proposals</TabsTrigger>
                 <TabsTrigger value="reviews">Reviews</TabsTrigger>
                 <TabsTrigger value="escrow">Escrow</TabsTrigger>
+                <TabsTrigger value="reports">Reports</TabsTrigger>
               </TabsList>
 
               <TabsContent value="users">
@@ -288,7 +303,75 @@ const AdminPage = () => {
                       >
                         Refund
                       </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() =>
+                          handleAction(
+                            () => adminRequest(`/admin/escrow/${escrowJobId}/reject`, 'POST', { reason }),
+                            'Dispute rejected'
+                          )
+                        }
+                        disabled={!escrowJobId}
+                      >
+                        Reject Dispute
+                      </Button>
                     </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="reports">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Job Reports</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Button onClick={loadReports} disabled={reportsLoading}>
+                      {reportsLoading ? 'Loading...' : 'Load Open Reports'}
+                    </Button>
+                    {reports.length === 0 ? (
+                      <p className="text-sm text-slate-600">No open reports.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {reports.map((report) => (
+                          <div key={report.id} className="border rounded-lg p-3 space-y-2">
+                            <div className="text-sm text-slate-600">
+                              <div><span className="font-medium text-slate-800">Report ID:</span> {report.id}</div>
+                              <div><span className="font-medium text-slate-800">Job ID:</span> {report.jobId}</div>
+                              <div><span className="font-medium text-slate-800">Reporter:</span> {report.reporter?.firstName} {report.reporter?.lastName}</div>
+                              {report.reason && (
+                                <div><span className="font-medium text-slate-800">Reason:</span> {report.reason}</div>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() =>
+                                  handleAction(
+                                    () => adminRequest(`/admin/reports/${report.id}`, 'PATCH', { status: 'RESOLVED', reason }),
+                                    'Report resolved'
+                                  )
+                                }
+                              >
+                                Resolve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  handleAction(
+                                    () => adminRequest(`/admin/reports/${report.id}`, 'PATCH', { status: 'REJECTED', reason }),
+                                    'Report rejected'
+                                  )
+                                }
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>

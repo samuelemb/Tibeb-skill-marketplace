@@ -214,7 +214,7 @@ export async function notifyProposalEvent(
       type: config.type,
       title: config.title,
       message: config.message,
-      link: `/proposals/${proposalId}`,
+      link: `/contracts`,
       relatedEntityId: proposalId,
     },
     tx
@@ -242,11 +242,7 @@ export async function notifyMessageEvent(
   contractId?: string,
   tx?: Prisma.TransactionClient
 ): Promise<void> {
-  const link = contractId
-    ? `/messages/contract/${contractId}`
-    : jobId
-    ? `/messages/${jobId}`
-    : '/messages';
+  const link = jobId ? `/messages/${jobId}` : '/messages';
 
   await createNotification(
     {
@@ -286,7 +282,7 @@ export async function notifyFreelancerOfferAccepted(
       type: NotificationType.OFFER_ACCEPTED,
       title: 'Offer Accepted!',
       message: `You accepted the offer for "${jobTitle}"`,
-      link: `/contracts/${contractId}`,
+      link: `/contracts`,
       relatedEntityId: contractId,
     },
     tx

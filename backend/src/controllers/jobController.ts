@@ -7,8 +7,9 @@ import {
   publishJob,
   updateJobStatus,
   deleteJob,
+  reportJob,
 } from '../services/jobService';
-import { createJobSchema, updateJobSchema, updateJobStatusSchema } from '../utils/validation';
+import { createJobSchema, updateJobSchema, updateJobStatusSchema, reportJobSchema } from '../utils/validation';
 import { JobStatus, JobCategory } from '@prisma/client';
 
 export async function create(req: Request, res: Response, next: NextFunction) {
@@ -140,6 +141,23 @@ export async function remove(req: Request, res: Response, next: NextFunction) {
     res.status(200).json({
       success: true,
       data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function report(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user.userId;
+    const { reason } = reportJobSchema.parse(req.body || {});
+
+    const reportEntry = await reportJob(id, userId, reason);
+
+    res.status(201).json({
+      success: true,
+      data: reportEntry,
     });
   } catch (error) {
     next(error);

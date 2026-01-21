@@ -85,9 +85,11 @@ async function apiRequest<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    const message =
+    const rawMessage =
       (error && (error.message || error.error || error.details)) ||
       `HTTP error! status: ${response.status}`;
+    const message =
+      typeof rawMessage === 'string' ? rawMessage : JSON.stringify(rawMessage);
     throw new Error(message);
   }
 
@@ -299,6 +301,13 @@ export const jobsApi = {
   delete: async (id: string): Promise<void> => {
     await apiRequest(`/jobs/${id}`, {
       method: 'DELETE',
+    });
+  },
+
+  report: async (id: string, reason?: string): Promise<void> => {
+    await apiRequest(`/jobs/${id}/report`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
     });
   },
 };

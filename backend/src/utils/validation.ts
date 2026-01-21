@@ -55,13 +55,17 @@ export const updateProfileSchema = z.object({
 export const createJobSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200, 'Title is too long'),
   description: z.string().min(10, 'Description must be at least 10 characters'),
-  budget: z.number().positive('Budget must be positive').optional(),
+  requiredSkills: z.string().min(2, 'Required skills are required').max(500, 'Required skills are too long'),
+  timeline: z.string().min(2, 'Timeline is required').max(200, 'Timeline is too long'),
+  budget: z.number().positive('Budget must be positive'),
   category: z.enum(['WEB_DEVELOPMENT', 'MOBILE_DEVELOPMENT', 'DESIGN', 'WRITING', 'MARKETING', 'DATA_ANALYTICS', 'CONSULTING', 'OTHER']).optional(),
 });
 
 export const updateJobSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().min(10).optional(),
+  requiredSkills: z.string().min(2).max(500).optional(),
+  timeline: z.string().min(2).max(200).optional(),
   budget: z.number().positive().optional(),
   category: z.enum(['WEB_DEVELOPMENT', 'MOBILE_DEVELOPMENT', 'DESIGN', 'WRITING', 'MARKETING', 'DATA_ANALYTICS', 'CONSULTING', 'OTHER']).optional(),
 });
@@ -70,10 +74,23 @@ export const updateJobStatusSchema = z.object({
   status: z.enum(['DRAFT', 'OPEN', 'CONTRACTED', 'IN_PROGRESS', 'COMPLETED']),
 });
 
+export const reportJobSchema = z.object({
+  reason: z
+    .string()
+    .min(10, 'Reason must be at least 10 characters')
+    .max(1000, 'Reason is too long')
+    .optional(),
+});
+
 // Proposal Validation Schemas
 export const createProposalSchema = z.object({
   jobId: z.string().min(1, 'Job ID is required'),
-  message: z.string().min(10, 'Message must be at least 10 characters'),
+  message: z
+    .string()
+    .min(50, 'Message must be at least 50 characters')
+    .refine((value) => !/^\d+$/.test(value.trim()), 'Message cannot be only numbers'),
+  relevantExperience: z.string().min(2, 'Relevant experience is required').max(500, 'Relevant experience is too long'),
+  deliveryTime: z.string().min(2, 'Delivery time is required').max(200, 'Delivery time is too long'),
   proposedAmount: z.number().positive('Amount must be positive').optional(),
 });
 
@@ -105,7 +122,11 @@ export const removeSkillSchema = z.object({
 // Portfolio Validation Schemas
 export const createPortfolioItemSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200, 'Title is too long'),
-  description: z.string().min(10, 'Description must be at least 10 characters').max(2000, 'Description is too long'),
+  description: z
+    .string()
+    .min(50, 'Description must be at least 50 characters')
+    .max(2000, 'Description is too long')
+    .refine((value) => !/^\d+$/.test(value.trim()), 'Description cannot be only numbers'),
   imageUrl: z.string().url('Image URL must be a valid URL').max(500, 'Image URL is too long').optional().nullable(),
   projectUrl: z.string().url('Project URL must be a valid URL').max(500, 'Project URL is too long').optional().nullable(),
   technologies: z.string().max(500, 'Technologies string is too long').optional().nullable(),
@@ -113,7 +134,12 @@ export const createPortfolioItemSchema = z.object({
 
 export const updatePortfolioItemSchema = z.object({
   title: z.string().min(1).max(200).optional(),
-  description: z.string().min(10).max(2000).optional(),
+  description: z
+    .string()
+    .min(50, 'Description must be at least 50 characters')
+    .max(2000)
+    .refine((value) => !/^\d+$/.test(value.trim()), 'Description cannot be only numbers')
+    .optional(),
   imageUrl: z.string().url().max(500).optional().nullable(),
   projectUrl: z.string().url().max(500).optional().nullable(),
   technologies: z.string().max(500).optional().nullable(),
@@ -131,6 +157,7 @@ export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type CreateJobInput = z.infer<typeof createJobSchema>;
 export type UpdateJobInput = z.infer<typeof updateJobSchema>;
 export type UpdateJobStatusInput = z.infer<typeof updateJobStatusSchema>;
+export type ReportJobInput = z.infer<typeof reportJobSchema>;
 export type CreateProposalInput = z.infer<typeof createProposalSchema>;
 export type CreateMessageInput = z.infer<typeof createMessageSchema>;
 export type CreateReviewInput = z.infer<typeof createReviewSchema>;

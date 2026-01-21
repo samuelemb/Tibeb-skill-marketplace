@@ -18,7 +18,6 @@ import {
   Star,
   Clock,
   CheckCircle,
-  DollarSign,
   ArrowRight,
   Briefcase,
   Award,
@@ -104,6 +103,20 @@ const FreelancerDashboard: React.FC = () => {
     return styles[status] || 'bg-gray-100 text-gray-700';
   };
 
+  const formatCategory = (category?: string) => {
+    const labels: Record<string, string> = {
+      WEB_DEVELOPMENT: 'Web Development',
+      MOBILE_DEVELOPMENT: 'Mobile Development',
+      DESIGN: 'Design',
+      WRITING: 'Writing',
+      MARKETING: 'Marketing',
+      DATA_ANALYTICS: 'Data Analytics',
+      CONSULTING: 'Consulting',
+      OTHER: 'Other',
+    };
+    return category ? labels[category] || category.replace(/_/g, ' ') : 'Other';
+  };
+
   const profileFields = [
     user?.bio,
     user?.skills?.length,
@@ -183,9 +196,11 @@ const FreelancerDashboard: React.FC = () => {
                               <h3 className="font-semibold text-gray-900 hover:text-orange-600">
                                 {job.title}
                               </h3>
-                              <p className="text-sm text-gray-500">{job.client?.company || 'Client'}</p>
+                              <p className="text-sm text-gray-500">
+                                {job.client?.firstName ? `${job.client.firstName} ${job.client.lastName}` : 'Client'}
+                              </p>
                             </div>
-                            <Badge variant="outline">{job.category}</Badge>
+                            <Badge variant="outline">{formatCategory(job.category)}</Badge>
                           </div>
                           <p className="text-sm text-gray-600 mb-3 line-clamp-2">
                             {job.description}
@@ -193,7 +208,6 @@ const FreelancerDashboard: React.FC = () => {
                           <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
                             {job.budget !== null && job.budget !== undefined && (
                               <span className="flex items-center gap-1 font-medium text-orange-600">
-                                <DollarSign className="h-4 w-4" />
                                 Br {job.budget.toLocaleString()}
                               </span>
                             )}
@@ -204,7 +218,7 @@ const FreelancerDashboard: React.FC = () => {
                           </div>
                           <div className="flex gap-2">
                             <Badge variant="outline" className="bg-gray-50">
-                              {job.category}
+                              {formatCategory(job.category)}
                             </Badge>
                           </div>
                         </div>

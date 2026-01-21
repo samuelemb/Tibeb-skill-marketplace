@@ -7,6 +7,7 @@ import {
   publish,
   updateStatus,
   remove,
+  report,
 } from '../controllers/jobController';
 import { authenticate, requireRole } from '../middleware/auth';
 import { UserRole } from '@prisma/client';
@@ -274,6 +275,35 @@ router.patch('/:id/status', authenticate, requireRole(UserRole.CLIENT), updateSt
  *         description: Job not found
  */
 router.delete('/:id', authenticate, requireRole(UserRole.CLIENT), remove);
+
+/**
+ * @swagger
+ * /api/jobs/{id}/report:
+ *   post:
+ *     summary: Report a job (authenticated users)
+ *     tags: [Jobs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reason:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Report created
+ */
+router.post('/:id/report', authenticate, report);
 
 export default router;
 

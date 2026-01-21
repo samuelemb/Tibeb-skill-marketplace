@@ -12,6 +12,9 @@ import {
   holdEscrow,
   releaseEscrow,
   refundEscrow,
+  rejectEscrowDispute,
+  listJobReports,
+  resolveJobReport,
 } from '../services/adminService';
 import { createAdminSchema } from '../utils/validation';
 import { ValidationError } from '../utils/errors';
@@ -166,6 +169,43 @@ export async function refundEscrowHandler(req: Request, res: Response, next: Nex
     const { reason } = req.body || {};
     const escrow = await refundEscrow(jobId, actorId, reason);
     res.status(200).json({ success: true, data: escrow });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function rejectEscrowHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const actorId = (req as any).user.userId;
+    const { jobId } = req.params;
+    const { reason } = req.body || {};
+    const escrow = await rejectEscrowDispute(jobId, actorId, reason);
+    res.status(200).json({ success: true, data: escrow });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function listJobReportsHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const status = req.query.status as 'OPEN' | 'RESOLVED' | 'REJECTED' | undefined;
+    const reports = await listJobReports(status);
+    res.status(200).json({ success: true, data: reports });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function resolveJobReportHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const actorId = (req as any).user.userId;
+    const { id } = req.params;
+    const { status, reason } = req.body || {};
+    if (status !== 'RESOLVED' && status !== 'REJECTED') {
+      throw new ValidationError('Status must be RESOLVED or REJECTED');
+    }
+    const report = await resolveJobReport(id, actorId, status, reason);
+    res.status(200).json({ success: true, data: report });
   } catch (error) {
     next(error);
   }

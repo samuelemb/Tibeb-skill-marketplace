@@ -20,7 +20,6 @@ import {
   CheckCircle,
   Users,
   ArrowRight,
-  DollarSign,
 } from 'lucide-react';
 import { jobsApi, messagesApi } from '@/lib/api';
 
@@ -52,7 +51,10 @@ const ClientDashboard: React.FC = () => {
   const stats = [
     {
       label: 'Active Jobs',
-      value: jobsData?.data.filter(j => j.status === 'OPEN' || j.status === 'IN_PROGRESS').length || 0,
+      value:
+        jobsData?.data.filter(j =>
+          ['OPEN', 'IN_PROGRESS', 'CONTRACTED'].includes(j.status)
+        ).length || 0,
       icon: Briefcase,
       color: 'bg-indigo-100 text-indigo-600'
     },
@@ -85,6 +87,24 @@ const ClientDashboard: React.FC = () => {
       CONTRACTED: 'bg-orange-100 text-orange-700',
     };
     return styles[status] || 'bg-gray-100 text-gray-700';
+  };
+
+  const formatCategory = (category?: string) => {
+    const labels: Record<string, string> = {
+      WEB_DEVELOPMENT: 'Web Development',
+      MOBILE_DEVELOPMENT: 'Mobile Development',
+      DESIGN: 'Design',
+      WRITING: 'Writing',
+      MARKETING: 'Marketing',
+      DATA_ANALYTICS: 'Data Analytics',
+      CONSULTING: 'Consulting',
+      OTHER: 'Other',
+    };
+    return category ? labels[category] || category.replace(/_/g, ' ') : 'Other';
+  };
+
+  const formatStatus = (status?: string) => {
+    return status ? status.replace(/_/g, ' ') : '';
   };
 
   return (
@@ -157,13 +177,12 @@ const ClientDashboard: React.FC = () => {
                               {job.title}
                             </h3>
                             <Badge className={getStatusBadge(job.status)}>
-                              {job.status.replace('_', ' ')}
+                              {formatStatus(job.status)}
                             </Badge>
                           </div>
                           <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
                             {job.budget !== null && job.budget !== undefined && (
                               <span className="flex items-center gap-1">
-                                <DollarSign className="h-4 w-4" />
                                 Br {job.budget.toLocaleString()}
                               </span>
                             )}
@@ -178,7 +197,7 @@ const ClientDashboard: React.FC = () => {
                           </div>
                           <div className="flex gap-2">
                             <Badge variant="outline" className="bg-gray-50">
-                              {job.category}
+                              {formatCategory(job.category)}
                             </Badge>
                           </div>
                         </div>

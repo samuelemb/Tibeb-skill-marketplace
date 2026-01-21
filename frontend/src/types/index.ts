@@ -56,6 +56,8 @@ export interface Job {
   id: string;
   title: string;
   description: string;
+  requiredSkills?: string | null;
+  timeline?: string | null;
   budget?: number | null;
   status: JobStatus;
   clientId: string;
@@ -70,7 +72,9 @@ export interface Job {
 export interface CreateJobData {
   title: string;
   description: string;
-  budget?: number | null;
+  requiredSkills: string;
+  timeline: string;
+  budget: number;
   category: string;
 }
 
@@ -84,6 +88,8 @@ export interface Proposal {
   freelancerId: string;
   freelancer?: User;
   message: string;
+  relevantExperience?: string | null;
+  deliveryTime?: string | null;
   proposedAmount?: number | null;
   status: ProposalStatus;
   createdAt: string;
@@ -93,6 +99,8 @@ export interface Proposal {
 export interface CreateProposalData {
   jobId: string;
   message: string;
+  relevantExperience: string;
+  deliveryTime: string;
   proposedAmount?: number | null;
 }
 
@@ -249,6 +257,18 @@ export interface EscrowDispute {
   reason?: string | null;
   createdAt: string;
   resolvedAt?: string | null;
+}
+
+export interface JobReport {
+  id: string;
+  jobId: string;
+  reporterId: string;
+  reason?: string | null;
+  status: 'OPEN' | 'RESOLVED' | 'REJECTED';
+  createdAt: string;
+  resolvedAt?: string | null;
+  job?: Job;
+  reporter?: User;
 }
 
 export interface Wallet {

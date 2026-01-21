@@ -4,12 +4,15 @@ import React from 'react';
 import Link from 'next/link';
 import Image from "next/image";
 import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
 import { Card, CardContent } from '@/components/ui/card';
+import { jobsApi } from '@/lib/api';
+import type { Job } from '@/types';
 import {
   Search,
   Briefcase,
@@ -23,7 +26,6 @@ import {
   Zap,
   Award,
   Clock,
-  DollarSign,
   MessageSquare,
 } from 'lucide-react';
 
@@ -44,49 +46,6 @@ const categories = [
   { name: 'Content Writing', count: 987, icon: MessageSquare },
   { name: 'Digital Marketing', count: 1234, icon: TrendingUp },
   { name: 'Data Science', count: 756, icon: Search },
-];
-
-const featuredJobs = [
-  {
-    id: '1',
-    title: 'Senior React Developer for E-commerce Platform',
-    company: 'Memi Trading PLC',
-    budget: 'Br 30,000 - Br 50,000',
-    type: 'Fixed Price',
-    skills: ['React', 'TypeScript', 'Node.js', 'PostgreSQL'],
-    posted: '2 hours ago',
-    proposals: 12,
-  },
-  {
-    id: '2',
-    title: 'Mobile App Designer',
-    company: ' ',
-    budget: 'Br 500 - Br 800/hr',
-    type: 'Hourly',
-    skills: ['Figma', 'UI/UX', 'Mobile Design', 'Prototyping'],
-    posted: '5 hours ago',
-    proposals: 8,
-  },
-  {
-    id: '3',
-    title: 'Full Stack Developer for Healthcare App',
-    company: 'MedConnect',
-    budget: 'Br 32,000 - Br 40,000',
-    type: 'Fixed Price',
-    skills: ['Python', 'Django', 'React', 'AWS'],
-    posted: '1 day ago',
-    proposals: 24,
-  },
-  {
-    id: '4',
-    title: 'Content Writer for Tech Blog',
-    company: 'Digital Tigray',
-    budget: 'Br 250 - Br 400/hr',
-    type: 'Hourly',
-    skills: ['Technical Writing', 'SEO', 'Research', 'Editing'],
-    posted: '3 hours ago',
-    proposals: 15,
-  },
 ];
 
 const testimonials = [
@@ -117,12 +76,19 @@ const stats = [
   { label: 'Active Freelancers', value: '50K+', icon: Users },
   { label: 'Jobs Posted', value: '120K+', icon: Briefcase },
   { label: 'Projects Completed', value: '85K+', icon: CheckCircle },
-  { label: 'Total Earnings', value: 'Br 25M+', icon: DollarSign },
+  { label: 'Total Earnings', value: 'Br 25M+', icon: TrendingUp },
 ];
 
 const AppLayout: React.FC = () => {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = React.useState('');
+
+  const { data: featuredJobsData, isLoading: featuredLoading } = useQuery({
+    queryKey: ['featuredJobs'],
+    queryFn: () => jobsApi.getAll({ sortBy: 'date' }, 1, 4),
+  });
+
+  const featuredJobs = featuredJobsData?.data ?? [];
 
   React.useEffect(() => {
     if (typeof window === 'undefined') {
@@ -332,41 +298,80 @@ const AppLayout: React.FC = () => {
               </Button>
             </div>
             <div className="grid md:grid-cols-2 gap-6">
-              {featuredJobs.map((job) => (
-                <Card 
-                  key={job.id} 
-                  className="hover:shadow-lg transition-all cursor-pointer group"
-                  onClick={() => router.push(`/jobs/${job.id}`)}
-                >
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h3 className="font-semibold text-lg text-gray-900 group-hover:text-indigo-600 transition-colors mb-1">
-                          {job.title}
-                        </h3>
-                        <p className="text-gray-600">{job.company}</p>
+              {featuredLoading ? (
+                Array.from({ length: 4 }).map((_, index) => (
+                  <Card key={`featured-skeleton-${index}`} className="animate-pulse">
+                    <CardContent className="p-6 space-y-4">
+                      <div className="h-5 bg-gray-200 rounded w-3/4" />
+                      <div className="h-4 bg-gray-200 rounded w-1/2" />
+                      <div className="flex gap-2">
+                        <div className="h-6 bg-gray-200 rounded w-16" />
+                        <div className="h-6 bg-gray-200 rounded w-20" />
+                        <div className="h-6 bg-gray-200 rounded w-14" />
                       </div>
-                      <Badge variant={job.type === 'Fixed Price' ? 'default' : 'secondary'}>
-                        {job.type}
-                      </Badge>
-                    </div>
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {job.skills.map((skill) => (
-                        <Badge key={skill} variant="outline" className="bg-gray-50">
-                          {skill}
-                        </Badge>
-                      ))}
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-semibold text-indigo-600">{job.budget}</span>
-                      <div className="flex items-center gap-4 text-gray-500">
-                        <span>{job.proposals} proposals</span>
-                        <span>{job.posted}</span>
-                      </div>
-                    </div>
+                      <div className="h-4 bg-gray-200 rounded w-2/3" />
+                    </CardContent>
+                  </Card>
+                ))
+              ) : featuredJobs.length > 0 ? (
+                featuredJobs.map((job: Job) => {
+                  const skillList = (job.requiredSkills || '')
+                    .split(',')
+                    .map((skill) => skill.trim())
+                    .filter(Boolean)
+                    .slice(0, 4);
+
+                  return (
+                    <Card 
+                      key={job.id} 
+                      className="hover:shadow-lg transition-all cursor-pointer group"
+                      onClick={() => router.push(`/jobs/${job.id}`)}
+                    >
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <h3 className="font-semibold text-lg text-gray-900 group-hover:text-indigo-600 transition-colors mb-1">
+                              {job.title}
+                            </h3>
+                            <p className="text-gray-600">
+                              {job.client?.firstName
+                                ? `${job.client.firstName} ${job.client.lastName}`
+                                : 'Client'}
+                            </p>
+                          </div>
+                          <Badge variant="default">Open</Badge>
+                        </div>
+                        {skillList.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mb-4">
+                            {skillList.map((skill) => (
+                              <Badge key={skill} variant="outline" className="bg-gray-50">
+                                {skill}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-semibold text-indigo-600">
+                            {job.budget !== null && job.budget !== undefined
+                              ? `Br ${job.budget.toLocaleString()}`
+                              : 'Budget negotiable'}
+                          </span>
+                          <div className="flex items-center gap-4 text-gray-500">
+                            <span>{job.proposalCount ?? 0} proposals</span>
+                            <span>{new Date(job.createdAt).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              ) : (
+                <Card className="md:col-span-2">
+                  <CardContent className="p-8 text-center text-gray-600">
+                    No open jobs available yet. Check back soon.
                   </CardContent>
                 </Card>
-              ))}
+              )}
             </div>
           </div>
         </section>

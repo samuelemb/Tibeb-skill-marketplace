@@ -32,6 +32,8 @@ export async function createJob(clientId: string, input: CreateJobInput) {
     data: {
       title: input.title,
       description: input.description,
+      requiredSkills: input.requiredSkills,
+      timeline: input.timeline,
       budget: input.budget,
       category: input.category || JobCategory.OTHER,
       status: JobStatus.DRAFT,
@@ -44,6 +46,8 @@ export async function createJob(clientId: string, input: CreateJobInput) {
           email: true,
           firstName: true,
           lastName: true,
+          avatarUrl: true,
+          createdAt: true,
         },
       },
     },
@@ -150,7 +154,9 @@ export async function getJobs(filters?: JobSearchFilters): Promise<PaginatedJobs
 
     // Build the full query with full-text search
     const searchCondition = searchTerms
-      ? `search_vector @@ plainto_tsquery('english', $1)`
+      ? `(search_vector @@ plainto_tsquery('english', $1)
+          OR title ILIKE '%' || $1 || '%'
+          OR description ILIKE '%' || $1 || '%')`
       : '1=1';
 
     const whereConditions: string[] = [];
@@ -162,7 +168,7 @@ export async function getJobs(filters?: JobSearchFilters): Promise<PaginatedJobs
     }
 
     if (effectiveStatus) {
-      whereConditions.push(`status = $${queryParams.length + 1}`);
+      whereConditions.push(`status = $${queryParams.length + 1}::"JobStatus"`);
       queryParams.push(effectiveStatus);
     }
 
@@ -223,13 +229,26 @@ export async function getJobs(filters?: JobSearchFilters): Promise<PaginatedJobs
     // Get paginated results with full-text search
     const jobsQuery = `
       SELECT 
-        j.*,
+        j.id,
+        j.title,
+        j.description,
+        j."requiredSkills",
+        j.timeline,
+        j.budget,
+        j.status,
+        j.category,
+        j."clientId",
+        j."createdAt",
+        j."updatedAt",
+        j."isHidden",
         ts_rank_cd(j.search_vector, plainto_tsquery('english', $1)) as relevance,
         json_build_object(
           'id', u.id,
           'email', u.email,
           'firstName', u."firstName",
-          'lastName', u."lastName"
+          'lastName', u."lastName",
+          'avatarUrl', u."avatarUrl",
+          'createdAt', u."createdAt"
         ) as client,
         (
           SELECT COUNT(*)::int
@@ -290,6 +309,8 @@ export async function getJobs(filters?: JobSearchFilters): Promise<PaginatedJobs
             email: true,
             firstName: true,
             lastName: true,
+            avatarUrl: true,
+            createdAt: true,
           },
         },
         _count: {
@@ -327,6 +348,8 @@ export async function getJobById(jobId: string) {
           email: true,
           firstName: true,
           lastName: true,
+          avatarUrl: true,
+          createdAt: true,
         },
       },
       proposals: {
@@ -371,6 +394,41 @@ export async function getJobById(jobId: string) {
   return job;
 }
 
+export async function reportJob(jobId: string, reporterId: string, reason?: string) {
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+  });
+
+  if (!job) {
+    throw new NotFoundError('Job not found');
+  }
+
+  if (job.clientId === reporterId) {
+    throw new ValidationError('You cannot report your own job');
+  }
+
+  const existingReport = await prisma.jobReport.findFirst({
+    where: {
+      jobId,
+      reporterId,
+      status: 'OPEN',
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (existingReport) {
+    return existingReport;
+  }
+
+  return prisma.jobReport.create({
+    data: {
+      jobId,
+      reporterId,
+      reason,
+    },
+  });
+}
+
 export async function updateJob(jobId: string, userId: string, userRole: UserRole, input: UpdateJobInput) {
   // Only clients can update jobs
   if (userRole !== UserRole.CLIENT) {
@@ -406,6 +464,8 @@ export async function updateJob(jobId: string, userId: string, userRole: UserRol
     data: {
       ...(input.title && { title: input.title }),
       ...(input.description && { description: input.description }),
+      ...(input.requiredSkills && { requiredSkills: input.requiredSkills }),
+      ...(input.timeline && { timeline: input.timeline }),
       ...(input.budget !== undefined && { budget: input.budget }),
       ...(input.category && { category: input.category }),
     },
@@ -416,6 +476,8 @@ export async function updateJob(jobId: string, userId: string, userRole: UserRol
           email: true,
           firstName: true,
           lastName: true,
+          avatarUrl: true,
+          createdAt: true,
         },
       },
     },
@@ -455,6 +517,8 @@ export async function publishJob(jobId: string, userId: string, userRole: UserRo
           email: true,
           firstName: true,
           lastName: true,
+          avatarUrl: true,
+          createdAt: true,
         },
       },
     },

@@ -17,9 +17,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import {
   Briefcase,
-  DollarSign,
   Tag,
   FileText,
+  Clock,
   Loader2,
   AlertCircle,
   CheckCircle,
@@ -43,8 +43,10 @@ const categories = [
 const jobSchema = z.object({
   title: z.string().min(10, 'Title must be at least 10 characters'),
   description: z.string().min(50, 'Description must be at least 50 characters'),
+  requiredSkills: z.string().min(2, 'Required skills are required').max(500, 'Required skills are too long'),
+  timeline: z.string().min(2, 'Timeline is required').max(200, 'Timeline is too long'),
   category: z.string().min(1, 'Please select a category'),
-  budget: z.number().min(1, 'Please enter a valid budget').optional(),
+  budget: z.number().min(1, 'Please enter a valid budget'),
 });
 
 type JobFormData = z.infer<typeof jobSchema>;
@@ -73,6 +75,8 @@ const EditJob: React.FC = () => {
     defaultValues: {
       title: '',
       description: '',
+      requiredSkills: '',
+      timeline: '',
       category: '',
       budget: undefined,
     },
@@ -83,6 +87,8 @@ const EditJob: React.FC = () => {
       reset({
         title: job.title,
         description: job.description,
+        requiredSkills: job.requiredSkills || '',
+        timeline: job.timeline || '',
         category: job.category,
         budget: job.budget ?? undefined,
       });
@@ -247,6 +253,45 @@ const EditJob: React.FC = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Tag className="h-5 w-5 text-indigo-600" />
+                    Required Skills
+                  </CardTitle>
+                  <CardDescription>List the key skills needed (comma separated)</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Textarea
+                    placeholder="e.g., React, TypeScript, Node.js"
+                    rows={3}
+                    {...register('requiredSkills')}
+                  />
+                  {errors.requiredSkills && (
+                    <p className="text-sm text-red-500 mt-1">{errors.requiredSkills.message}</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-indigo-600" />
+                    Timeline
+                  </CardTitle>
+                  <CardDescription>When do you expect this job to be completed?</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Input
+                    placeholder="e.g., 2 weeks, by end of March"
+                    {...register('timeline')}
+                  />
+                  {errors.timeline && (
+                    <p className="text-sm text-red-500 mt-1">{errors.timeline.message}</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Tag className="h-5 w-5 text-indigo-600" />
                     Category
                   </CardTitle>
                 </CardHeader>
@@ -269,23 +314,18 @@ const EditJob: React.FC = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <DollarSign className="h-5 w-5 text-indigo-600" />
                     Budget
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                      <Input
-                        type="number"
-                        placeholder="Estimated budget (optional)"
-                        className="pl-10"
-                        {...register('budget', {
-                          setValueAs: (value) => (value === '' ? undefined : Number(value)),
-                        })}
-                      />
-                    </div>
+                    <Input
+                      type="number"
+                      placeholder="Estimated budget in Br"
+                      {...register('budget', {
+                        setValueAs: (value) => (value === '' ? undefined : Number(value)),
+                      })}
+                    />
                     {errors.budget && (
                       <p className="text-sm text-red-500">{errors.budget.message}</p>
                     )}

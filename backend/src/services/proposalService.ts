@@ -49,6 +49,8 @@ export async function createProposal(freelancerId: string, input: CreateProposal
         jobId: input.jobId,
         freelancerId,
         message: input.message,
+        relevantExperience: input.relevantExperience,
+        deliveryTime: input.deliveryTime,
         proposedAmount: input.proposedAmount,
         status: ProposalStatus.PENDING,
       },

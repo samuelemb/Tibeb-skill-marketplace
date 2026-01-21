@@ -23,9 +23,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import {
   Clock,
-  DollarSign,
   Briefcase,
-  MapPin,
   Calendar,
   FileText,
   Send,
@@ -37,7 +35,12 @@ import { jobsApi, proposalsApi, reviewsApi, paymentsApi } from '@/lib/api';
 import { getMediaUrl } from '@/lib/media';
 
 const proposalSchema = z.object({
-  message: z.string().min(10, 'Message must be at least 10 characters'),
+  message: z
+    .string()
+    .min(50, 'Message must be at least 50 characters')
+    .refine((value) => !/^\d+$/.test(value.trim()), 'Message cannot be only numbers'),
+  relevantExperience: z.string().min(2, 'Relevant experience is required').max(500, 'Relevant experience is too long'),
+  deliveryTime: z.string().min(2, 'Delivery time is required').max(200, 'Delivery time is too long'),
   proposedAmount: z.number().positive('Please enter a valid amount').optional(),
 });
 
@@ -61,6 +64,8 @@ const JobDetail: React.FC = () => {
   const [isDisputeDialogOpen, setIsDisputeDialogOpen] = useState(false);
   const [refundReason, setRefundReason] = useState('');
   const [disputeReason, setDisputeReason] = useState('');
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
 
   const { data: job, isLoading } = useQuery({
     queryKey: ['job', id],
@@ -158,7 +163,7 @@ const JobDetail: React.FC = () => {
   const refundEscrowMutation = useMutation({
     mutationFn: (reason: string) => paymentsApi.refundEscrow(id!, reason),
     onSuccess: () => {
-      toast.success('Escrow refunded');
+      toast.success('Refund request submitted for admin review');
       setIsRefundDialogOpen(false);
       setRefundReason('');
       queryClient.invalidateQueries({ queryKey: ['job', id] });
@@ -172,7 +177,7 @@ const JobDetail: React.FC = () => {
   const disputeEscrowMutation = useMutation({
     mutationFn: (reason: string) => paymentsApi.disputeEscrow(id!, reason),
     onSuccess: () => {
-      toast.success('Dispute opened');
+      toast.success('Dispute submitted for admin review');
       setIsDisputeDialogOpen(false);
       setDisputeReason('');
       queryClient.invalidateQueries({ queryKey: ['escrow', id] });
@@ -215,12 +220,26 @@ const JobDetail: React.FC = () => {
     },
   });
 
+  const reportJobMutation = useMutation({
+    mutationFn: (reason: string) => jobsApi.report(id!, reason),
+    onSuccess: () => {
+      toast.success('Report submitted to admin');
+      setIsReportDialogOpen(false);
+      setReportReason('');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to submit report');
+    },
+  });
+
 
   const onSubmitProposal = (data: ProposalFormData) => {
     if (!id) return;
     submitProposalMutation.mutate({
       jobId: id,
       message: data.message,
+      relevantExperience: data.relevantExperience,
+      deliveryTime: data.deliveryTime,
       proposedAmount: data.proposedAmount,
     });
   };
@@ -290,7 +309,7 @@ const JobDetail: React.FC = () => {
         : undefined;
   const canReview =
     job?.status === 'COMPLETED' && (isOwner || isFreelancerOnJob) && !!revieweeId;
-  const escrowPaid = escrow?.status === 'PAID' || escrow?.status === 'RELEASED';
+  const escrowPaid = escrow?.status === 'PAID';
   const canRefundEscrow = isOwner && job?.status === 'CONTRACTED' && escrowPaid;
   const canDisputeEscrow = escrowPaid && (isOwner || isFreelancerOnJob);
 
@@ -302,6 +321,20 @@ const JobDetail: React.FC = () => {
       rating: data.rating,
       comment: data.comment ?? "",
     });
+  };
+
+  const formatCategory = (category?: string) => {
+    const labels: Record<string, string> = {
+      WEB_DEVELOPMENT: 'Web Development',
+      MOBILE_DEVELOPMENT: 'Mobile Development',
+      DESIGN: 'Design',
+      WRITING: 'Writing',
+      MARKETING: 'Marketing',
+      DATA_ANALYTICS: 'Data Analytics',
+      CONSULTING: 'Consulting',
+      OTHER: 'Other',
+    };
+    return category ? labels[category] || category.replace(/_/g, ' ') : 'Other';
   };
   if (job.status === 'DRAFT' && !isOwner) {
     return (
@@ -342,14 +375,23 @@ const JobDetail: React.FC = () => {
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   {getStatusBadge(job.status)}
-                  <Badge variant="outline">{job.category}</Badge>
+                  <Badge variant="outline">{formatCategory(job.category)}</Badge>
                 </div>
                 <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
                   {job.title}
                 </h1>
                 <p className="text-gray-600">
-                  Posted by {job.client?.firstName} {job.client?.lastName}
-                  {job.client?.company && ` - ${job.client.company}`}
+                  Posted by{' '}
+                  {job.client?.id ? (
+                    <Link
+                      href={`/freelancers/${job.client.id}`}
+                      className="text-indigo-600 hover:underline"
+                    >
+                      {job.client?.firstName} {job.client?.lastName}
+                    </Link>
+                  ) : (
+                    `${job.client?.firstName} ${job.client?.lastName}`
+                  )}
                 </p>
               </div>
               <div className="text-right">
@@ -404,13 +446,28 @@ const JobDetail: React.FC = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="prose max-w-none">
-                    <p className="whitespace-pre-wrap text-gray-700">{job.description}</p>
+                    <p className="whitespace-pre-wrap break-words text-gray-700">{job.description}</p>
                   </div>
+                  {(job.requiredSkills || job.timeline) && (
+                    <div className="mt-4 space-y-2 text-sm text-gray-600">
+                      {job.requiredSkills && (
+                        <p>
+                          <span className="font-medium text-gray-700">Required skills:</span>{' '}
+                          {job.requiredSkills}
+                        </p>
+                      )}
+                      {job.timeline && (
+                        <p>
+                          <span className="font-medium text-gray-700">Timeline:</span> {job.timeline}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
               {/* Proposals (for client) */}
-              {isOwner && proposals && (
+              {isOwner && job.status !== 'DRAFT' && proposals && (
                 <Card>
                   <CardHeader>
                     <CardTitle>Proposals ({proposals.length})</CardTitle>
@@ -453,6 +510,18 @@ const JobDetail: React.FC = () => {
                               </Badge>
                             </div>
                             <p className="text-gray-700 mb-4">{proposal.message}</p>
+                            {proposal.relevantExperience && (
+                              <p className="text-sm text-gray-600 mb-2">
+                                <span className="font-medium text-gray-700">Relevant experience:</span>{' '}
+                                {proposal.relevantExperience}
+                              </p>
+                            )}
+                            {proposal.deliveryTime && (
+                              <p className="text-sm text-gray-600 mb-4">
+                                <span className="font-medium text-gray-700">Delivery time:</span>{' '}
+                                {proposal.deliveryTime}
+                              </p>
+                            )}
                             {proposal.status === 'PENDING' && (
                               <div className="flex gap-2">
                                 <Button
@@ -502,6 +571,22 @@ const JobDetail: React.FC = () => {
                         <p className="text-gray-600">No proposals yet</p>
                       </div>
                     )}
+                  </CardContent>
+                </Card>
+              )}
+              {isOwner && job.status === 'DRAFT' && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Proposals</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-center py-8">
+                      <FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                      <p className="text-gray-600">No proposals yet.</p>
+                      <p className="text-sm text-gray-500">
+                        Once you publish this job, freelancers will be able to apply.
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -632,7 +717,7 @@ const JobDetail: React.FC = () => {
                               onClick={() => refundEscrowMutation.mutate(refundReason)}
                               disabled={refundEscrowMutation.isPending}
                             >
-                              {refundEscrowMutation.isPending ? 'Submitting...' : 'Confirm Refund'}
+                              {refundEscrowMutation.isPending ? 'Submitting...' : 'Submit Request'}
                             </Button>
                           </div>
                         </DialogContent>
@@ -721,12 +806,35 @@ const JobDetail: React.FC = () => {
                                 <Label htmlFor="message">Message</Label>
                                 <Textarea
                                   id="message"
-                                  placeholder="Introduce yourself and explain why you're a good fit..."
+                                  placeholder="Describe your approach, timeline, and relevant experience for this job."
                                   rows={5}
                                   {...register('message')}
                                 />
                                 {errors.message && (
                                   <p className="text-sm text-red-500 mt-1">{errors.message.message}</p>
+                                )}
+                              </div>
+                              <div>
+                                <Label htmlFor="relevantExperience">Relevant experience / skills</Label>
+                                <Textarea
+                                  id="relevantExperience"
+                                  placeholder="Share relevant experience, past projects, or skills..."
+                                  rows={3}
+                                  {...register('relevantExperience')}
+                                />
+                                {errors.relevantExperience && (
+                                  <p className="text-sm text-red-500 mt-1">{errors.relevantExperience.message}</p>
+                                )}
+                              </div>
+                              <div>
+                                <Label htmlFor="deliveryTime">Delivery time</Label>
+                                <Input
+                                  id="deliveryTime"
+                                  placeholder="e.g., 2 weeks, 10 business days"
+                                  {...register('deliveryTime')}
+                                />
+                                {errors.deliveryTime && (
+                                  <p className="text-sm text-red-500 mt-1">{errors.deliveryTime.message}</p>
                                 )}
                               </div>
                               <div>
@@ -760,6 +868,37 @@ const JobDetail: React.FC = () => {
                             </form>
                           </DialogContent>
                         </Dialog>
+                        <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" className="w-full mt-3">
+                              Report Job
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-lg">
+                            <DialogHeader>
+                              <DialogTitle>Report this job</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div>
+                                <Label htmlFor="reportReason">Reason</Label>
+                                <Textarea
+                                  id="reportReason"
+                                  rows={4}
+                                  value={reportReason}
+                                  onChange={(e) => setReportReason(e.target.value)}
+                                  placeholder="Tell us why you are reporting this job..."
+                                />
+                              </div>
+                              <Button
+                                className="w-full bg-indigo-600 hover:bg-indigo-700"
+                                onClick={() => reportJobMutation.mutate(reportReason)}
+                                disabled={reportJobMutation.isPending || reportReason.trim().length < 10}
+                              >
+                                {reportJobMutation.isPending ? 'Submitting...' : 'Submit Report'}
+                              </Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
                       </>
                     )}
                   </CardContent>
@@ -781,21 +920,21 @@ const JobDetail: React.FC = () => {
                     </Avatar>
                     <div>
                       <p className="font-medium">{job.client?.firstName} {job.client?.lastName}</p>
-                      {job.client?.company && (
-                        <p className="text-sm text-gray-500">{job.client.company}</p>
-                      )}
                     </div>
                   </div>
-                  {job.client?.location && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                      <MapPin className="h-4 w-4" />
-                      {job.client.location}
-                    </div>
-                  )}
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Calendar className="h-4 w-4" />
-                    Member since {new Date(job.client?.createdAt || '').toLocaleDateString()}
+                    Member since {job.client?.createdAt ? new Date(job.client.createdAt).toLocaleDateString() : 'N/A'}
                   </div>
+                  {job.client?.id && user?.id !== job.client.id && (
+                    <Button
+                      variant="outline"
+                      className="mt-4 w-full"
+                      onClick={() => router.push(`/freelancers/${job.client?.id}`)}
+                    >
+                      View Profile
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
 
@@ -806,7 +945,7 @@ const JobDetail: React.FC = () => {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-gray-500 text-center py-4">
-                    Browse more jobs in {job.category}
+                    Browse more jobs in {formatCategory(job.category)}
                   </p>
                   <Button
                     variant="outline"
@@ -828,4 +967,3 @@ const JobDetail: React.FC = () => {
 };
 
 export default JobDetail;
-

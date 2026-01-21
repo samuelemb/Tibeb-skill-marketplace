@@ -53,7 +53,6 @@ const JobsList: React.FC = () => {
   
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [category, setCategory] = useState(searchParams.get('category') || 'All Categories');
-  const [status, setStatus] = useState(searchParams.get('status') || 'OPEN');
   const [sortBy, setSortBy] = useState(searchParams.get('sortBy') || 'date');
   const [budgetType, setBudgetType] = useState('');
   const [budgetRange, setBudgetRange] = useState([0, 10000]);
@@ -65,7 +64,6 @@ const JobsList: React.FC = () => {
     category: category !== 'All Categories' ? categoryMap[category] : undefined,
     minBudget: budgetRange[0] > 0 ? budgetRange[0] : undefined,
     maxBudget: budgetRange[1] < 10000 ? budgetRange[1] : undefined,
-    status: status === 'ALL' ? undefined : (status as JobFilters['status']),
     sortBy: sortBy as JobFilters['sortBy'],
   };
 
@@ -80,7 +78,6 @@ const JobsList: React.FC = () => {
     const params = new URLSearchParams();
     if (searchQuery) params.set('search', searchQuery);
     if (category !== 'All Categories') params.set('category', category);
-    if (status && status !== 'ALL') params.set('status', status);
     if (sortBy) params.set('sortBy', sortBy);
     const query = params.toString();
     router.push(query ? `/jobs?${query}` : '/jobs');
@@ -89,7 +86,6 @@ const JobsList: React.FC = () => {
   const clearFilters = () => {
     setSearchQuery('');
     setCategory('All Categories');
-    setStatus('OPEN');
     setSortBy('date');
     setBudgetType('');
     setBudgetRange([0, 10000]);
@@ -102,8 +98,21 @@ const JobsList: React.FC = () => {
     category !== 'All Categories' ||
     budgetRange[0] > 0 ||
     budgetRange[1] < 10000 ||
-    status !== 'OPEN' ||
     sortBy !== 'date';
+
+  const formatCategory = (value?: string) => {
+    const labels: Record<string, string> = {
+      WEB_DEVELOPMENT: 'Web Development',
+      MOBILE_DEVELOPMENT: 'Mobile Development',
+      DESIGN: 'Design',
+      WRITING: 'Writing',
+      MARKETING: 'Marketing',
+      DATA_ANALYTICS: 'Data Analytics',
+      CONSULTING: 'Consulting',
+      OTHER: 'Other',
+    };
+    return value ? labels[value] || value.replace(/_/g, ' ') : 'Other';
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -140,18 +149,6 @@ const JobsList: React.FC = () => {
                   {categories.map((cat) => (
                     <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger className="w-full md:w-44">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All Status</SelectItem>
-                  <SelectItem value="OPEN">Open</SelectItem>
-                  <SelectItem value="CONTRACTED">Contracted</SelectItem>
-                  <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                  <SelectItem value="COMPLETED">Completed</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={sortBy} onValueChange={setSortBy}>
@@ -241,14 +238,16 @@ const JobsList: React.FC = () => {
                     <CardContent className="p-6">
                       <div className="flex items-start justify-between mb-3">
                         <Badge variant="outline" className="text-xs">
-                          {job.category}
+                          {formatCategory(job.category)}
                         </Badge>
                       </div>
                       <h3 className="font-semibold text-lg text-gray-900 group-hover:text-indigo-600 transition-colors mb-2 line-clamp-2">
                         {job.title}
                       </h3>
                       <p className="text-sm text-gray-500 mb-3">
-                        {job.client?.company || 'Client'}
+                        {job.client?.firstName
+                          ? `${job.client.firstName} ${job.client.lastName}`
+                          : 'Client'}
                       </p>
                       <p className="text-sm text-gray-600 mb-4 line-clamp-3">
                         {job.description}

@@ -346,3 +346,87 @@ export async function refundEscrow(jobId: string, actorId: string, reason?: stri
 
   return escrow;
 }
+
+export async function rejectEscrowDispute(jobId: string, actorId: string, reason?: string) {
+  const escrow = await getEscrowForJob(jobId);
+
+  const dispute = await prisma.escrowDispute.findFirst({
+    where: { escrowPaymentId: escrow.id, status: 'OPEN' },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (!dispute) {
+    throw new ValidationError('No open dispute found for this escrow');
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.escrowDispute.update({
+      where: { id: dispute.id },
+      data: { status: 'REJECTED', reason: reason || dispute.reason, resolvedAt: new Date() },
+    });
+
+    if (['HELD', 'DISPUTED'].includes(escrow.status)) {
+      await tx.escrowPayment.update({
+        where: { id: escrow.id },
+        data: { status: 'PAID' },
+      });
+    }
+  });
+
+  await recordAuditLog({
+    actorId,
+    action: 'ESCROW_DISPUTE_REJECTED',
+    entityType: 'EscrowPayment',
+    entityId: escrow.id,
+    metadata: { jobId, reason },
+  });
+
+  return escrow;
+}
+
+export async function listJobReports(status?: 'OPEN' | 'RESOLVED' | 'REJECTED') {
+  return prisma.jobReport.findMany({
+    where: status ? { status } : undefined,
+    include: {
+      job: true,
+      reporter: {
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
+export async function resolveJobReport(reportId: string, actorId: string, status: 'RESOLVED' | 'REJECTED', reason?: string) {
+  const report = await prisma.jobReport.findUnique({
+    where: { id: reportId },
+  });
+
+  if (!report) {
+    throw new NotFoundError('Job report not found');
+  }
+
+  const updated = await prisma.jobReport.update({
+    where: { id: reportId },
+    data: {
+      status,
+      reason: reason || report.reason,
+      resolvedAt: new Date(),
+    },
+  });
+
+  await recordAuditLog({
+    actorId,
+    action: status === 'RESOLVED' ? 'JOB_REPORT_RESOLVED' : 'JOB_REPORT_REJECTED',
+    entityType: 'JobReport',
+    entityId: reportId,
+    metadata: { reason },
+  });
+
+  return updated;
+}

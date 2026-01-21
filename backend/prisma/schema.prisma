@@ -84,10 +84,11 @@ model User {
   skills                UserSkill[]
   portfolioItems        PortfolioItem[]
   wallet                Wallet?
-  escrowsAsClient        EscrowPayment[] @relation("EscrowClient")
-  escrowsAsFreelancer    EscrowPayment[] @relation("EscrowFreelancer")
-  escrowDisputesRaised   EscrowDispute[] @relation("EscrowDisputesRaised")
-  auditLogs             AuditLog[] @relation("AuditActor")
+    escrowsAsClient        EscrowPayment[] @relation("EscrowClient")
+    escrowsAsFreelancer    EscrowPayment[] @relation("EscrowFreelancer")
+    escrowDisputesRaised   EscrowDispute[] @relation("EscrowDisputesRaised")
+    jobReports             JobReport[] @relation("JobReportReporter")
+    auditLogs             AuditLog[] @relation("AuditActor")
 
   @@map("users")
 }
@@ -96,6 +97,8 @@ model Job {
   id          String      @id @default(cuid())
   title       String
   description String      @db.Text
+  requiredSkills String?  @db.Text
+  timeline    String?     @db.Text
   budget      Float? // Optional for now
   status      JobStatus   @default(DRAFT)
   category    JobCategory @default(OTHER)
@@ -112,9 +115,10 @@ model Job {
   proposals Proposal[]
   contract  Contract?
   messages  Message[]
-  reviews   Review[]
-  escrowPayments EscrowPayment[]
-  escrowDisputes EscrowDispute[]
+    reviews   Review[]
+    escrowPayments EscrowPayment[]
+    escrowDisputes EscrowDispute[]
+    reports  JobReport[]
 
   @@index([clientId])
   @@index([status])
@@ -129,6 +133,8 @@ model Proposal {
   jobId          String
   freelancerId   String
   message        String         @db.Text
+  relevantExperience String?    @db.Text
+  deliveryTime   String?        @db.Text
   proposedAmount Float? // Optional
   status         ProposalStatus @default(PENDING)
   isHidden       Boolean        @default(false)
@@ -360,6 +366,30 @@ enum EscrowDisputeStatus {
   OPEN
   RESOLVED
   REJECTED
+}
+
+enum JobReportStatus {
+  OPEN
+  RESOLVED
+  REJECTED
+}
+
+model JobReport {
+  id         String          @id @default(cuid())
+  jobId      String
+  reporterId String
+  reason     String?         @db.Text
+  status     JobReportStatus @default(OPEN)
+  resolvedAt DateTime?
+  createdAt  DateTime        @default(now())
+
+  job      Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  reporter User @relation("JobReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([reporterId])
+  @@index([status])
+  @@map("job_reports")
 }
 
 model EscrowDispute {

@@ -55,6 +55,13 @@ function buildReturnUrl(txRef: string, jobId: string) {
   }
 }
 
+function truncate(value: string, maxLength: number) {
+  if (value.length <= maxLength) {
+    return value;
+  }
+  return value.slice(0, maxLength);
+}
+
 export async function initializeEscrowPayment(jobId: string, userId: string, userRole: string) {
   if (userRole !== 'CLIENT') {
     throw new ForbiddenError('Only clients can fund escrow');
@@ -113,8 +120,8 @@ export async function initializeEscrowPayment(jobId: string, userId: string, use
     first_name: job.client.firstName,
     last_name: job.client.lastName,
     customization: {
-      title: 'Tibeb Escrow',
-      description: `Escrow funding for job ${job.title}`,
+      title: truncate('Tibeb Escrow', 50),
+      description: truncate(`Escrow funding for job ${job.title}`, 50),
     },
   };
 
@@ -265,23 +272,21 @@ export async function requestEscrowRefund(
     throw new ValidationError('No funded escrow available for this job');
   }
 
-  const updatedEscrow = await prisma.escrowPayment.update({
-    where: { id: escrow.id },
-    data: {
-      status: 'REFUNDED',
-      refundedAt: new Date(),
+  const existingRequest = await prisma.escrowDispute.findFirst({
+    where: {
+      escrowPaymentId: escrow.id,
+      type: 'REFUND_REQUEST',
+      status: 'OPEN',
     },
+    orderBy: { createdAt: 'desc' },
   });
 
-  await prisma.contract.update({
-    where: { id: job.contract.id },
-    data: { status: ContractStatus.CANCELLED },
-  });
-
-  await prisma.job.update({
-    where: { id: jobId },
-    data: { status: JobStatus.OPEN },
-  });
+  if (existingRequest) {
+    return prisma.escrowPayment.update({
+      where: { id: escrow.id },
+      data: { status: 'HELD' },
+    });
+  }
 
   await prisma.escrowDispute.create({
     data: {
@@ -290,10 +295,14 @@ export async function requestEscrowRefund(
       contractId: job.contract.id,
       raisedById: userId,
       type: 'REFUND_REQUEST',
-      status: 'RESOLVED',
+      status: 'OPEN',
       reason,
-      resolvedAt: new Date(),
     },
+  });
+
+  const updatedEscrow = await prisma.escrowPayment.update({
+    where: { id: escrow.id },
+    data: { status: 'HELD' },
   });
 
   return updatedEscrow;
@@ -328,6 +337,18 @@ export async function openEscrowDispute(
 
   if (!escrow) {
     throw new ValidationError('No funded escrow available for this job');
+  }
+
+  const existingDispute = await prisma.escrowDispute.findFirst({
+    where: {
+      escrowPaymentId: escrow.id,
+      status: 'OPEN',
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (existingDispute) {
+    return existingDispute;
   }
 
   const dispute = await prisma.escrowDispute.create({

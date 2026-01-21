@@ -25,7 +25,6 @@ import {
   Briefcase,
   Plus,
   Clock,
-  DollarSign,
   FileText,
   Users,
   ArrowRight,
@@ -88,6 +87,20 @@ const MyJobs: React.FC = () => {
     );
   };
 
+  const formatCategory = (category?: string) => {
+    const labels: Record<string, string> = {
+      WEB_DEVELOPMENT: 'Web Development',
+      MOBILE_DEVELOPMENT: 'Mobile Development',
+      DESIGN: 'Design',
+      WRITING: 'Writing',
+      MARKETING: 'Marketing',
+      DATA_ANALYTICS: 'Data Analytics',
+      CONSULTING: 'Consulting',
+      OTHER: 'Other',
+    };
+    return category ? labels[category] || category.replace(/_/g, ' ') : 'Other';
+  };
+
   const filterJobs = (status: string) => {
     if (!jobsData?.data) return [];
     if (status === 'all') return jobsData.data;
@@ -145,7 +158,7 @@ const MyJobs: React.FC = () => {
             >
               {job.title}
             </h3>
-            <p className="text-sm text-gray-500">{job.category}</p>
+            <p className="text-sm text-gray-500">{formatCategory(job.category)}</p>
           </div>
           {getStatusBadge(job.status)}
         </div>
@@ -156,14 +169,13 @@ const MyJobs: React.FC = () => {
 
         <div className="flex flex-wrap gap-2 mb-4">
           <Badge variant="outline" className="bg-gray-50 text-xs">
-            {job.category}
+            {formatCategory(job.category)}
           </Badge>
         </div>
 
         <div className="flex items-center gap-6 text-sm text-gray-600 mb-4">
           {job.budget !== null && job.budget !== undefined && (
             <span className="flex items-center gap-1">
-              <DollarSign className="h-4 w-4 text-indigo-600" />
               <span className="font-medium">Br {job.budget.toLocaleString()}</span>
             </span>
           )}
