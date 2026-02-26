@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -45,6 +46,7 @@ const ForgotPassword: React.FC = () => {
   const [resetSuccess, setResetSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const otpRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   const requestForm = useForm<RequestFormData>({
     resolver: zodResolver(requestSchema),
@@ -125,8 +127,8 @@ const ForgotPassword: React.FC = () => {
             <Card className="shadow-xl border-0">
               <CardHeader className="text-center pb-2">
                 <div className="flex justify-center mb-4">
-                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-indigo-600 to-orange-500 flex items-center justify-center">
-                    <Lock className="h-6 w-6 text-white" />
+                  <div className="h-12 w-12 rounded-xl bg-slate-50 flex items-center justify-center">
+                    <Image src="/logo.png" alt="Tibeb" width={28} height={28} />
                   </div>
                 </div>
                 <CardTitle className="text-2xl font-bold">Reset Password</CardTitle>
@@ -144,17 +146,36 @@ const ForgotPassword: React.FC = () => {
 
                 <form onSubmit={resetForm.handleSubmit(handleResetPassword)} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="code">Verification Code</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                      <Input
-                        id="code"
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="123456"
-                        className="pl-10"
-                        {...resetForm.register('code')}
-                      />
+                    <Label>Verification Code</Label>
+                    <div className="grid grid-cols-6 gap-2">
+                      {Array.from({ length: 6 }).map((_, index) => (
+                        <Input
+                          key={`code-${index}`}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={1}
+                          className="text-center text-lg font-semibold h-12"
+                          value={resetForm.watch('code')?.[index] || ''}
+                          ref={(el) => {
+                            otpRefs.current[index] = el;
+                          }}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/\D/g, '').slice(-1);
+                            const current = resetForm.getValues('code') || '';
+                            const next = current.padEnd(6, ' ').split('');
+                            next[index] = value;
+                            resetForm.setValue('code', next.join('').trim(), { shouldValidate: true });
+                            if (value && otpRefs.current[index + 1]) {
+                              otpRefs.current[index + 1]?.focus();
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Backspace' && !resetForm.watch('code')?.[index]) {
+                              otpRefs.current[index - 1]?.focus();
+                            }
+                          }}
+                        />
+                      ))}
                     </div>
                     {resetForm.formState.errors.code && (
                       <p className="text-sm text-red-500">{resetForm.formState.errors.code.message}</p>
@@ -254,8 +275,8 @@ const ForgotPassword: React.FC = () => {
           <Card className="shadow-xl border-0">
             <CardHeader className="text-center pb-2">
               <div className="flex justify-center mb-4">
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-indigo-600 to-orange-500 flex items-center justify-center">
-                  <Lock className="h-6 w-6 text-white" />
+                <div className="h-12 w-12 rounded-xl bg-slate-50 flex items-center justify-center">
+                  <Image src="/logo.png" alt="Tibeb" width={28} height={28} />
                 </div>
               </div>
               <CardTitle className="text-2xl font-bold">Forgot Password?</CardTitle>
