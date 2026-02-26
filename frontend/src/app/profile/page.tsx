@@ -167,6 +167,8 @@ const Profile: React.FC = () => {
   const averageRating = totalReviews > 0
     ? (reviewAverage?.averageRating ?? (reviews?.reduce((acc, r) => acc + r.rating, 0) || 0) / (reviews?.length || 1)).toFixed(1)
     : null;
+  const skillsCount = skills?.length || 0;
+  const walletBalance = walletData ? Number(walletData.balance).toFixed(2) : null;
 
   if (!user) return null;
 
@@ -178,98 +180,110 @@ const Profile: React.FC = () => {
       <main className="flex-1 py-8">
         <div className="container mx-auto px-4 max-w-4xl">
           {/* Profile Header */}
-          <Card className="mb-6">
-            <CardContent className="p-6">
-              <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-                {/* Avatar */}
-                <div className="relative">
-                  <Avatar className="h-32 w-32">
-                    <AvatarImage src={getMediaUrl(user.avatarUrl)} />
-                    <AvatarFallback className="bg-indigo-100 text-indigo-600 text-3xl">
-                      {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploadingAvatar}
-                    className="absolute bottom-0 right-0 p-2 bg-indigo-600 rounded-full text-white hover:bg-indigo-700 transition-colors"
-                  >
-                    {isUploadingAvatar ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Camera className="h-4 w-4" />
-                    )}
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleAvatarChange}
-                    className="hidden"
-                  />
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 text-center md:text-left">
-                  <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
-                    <h1 className="text-2xl font-bold text-gray-900">
-                      {user.firstName} {user.lastName}
-                    </h1>
-                    <Badge variant="outline" className="capitalize w-fit mx-auto md:mx-0">
-                      {user.role}
-                    </Badge>
-                    {user.emailVerified && (
-                      <Badge className="bg-green-100 text-green-700 w-fit mx-auto md:mx-0">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Verified
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-gray-600 mb-4">{user.email}</p>
-                  <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-sm text-gray-600">
-                    {averageRating && (
-                      <span className="flex items-center gap-1">
-                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        {averageRating} ({totalReviews} reviews)
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-2">
-                  {user.role === 'FREELANCER' && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setActiveTab('wallet')}
+          <Card className="mb-6 overflow-hidden border-0 shadow-lg">
+            <CardContent className="p-0">
+              <div className="bg-gradient-to-r from-indigo-700 via-blue-600 to-orange-500 px-6 py-8 text-white">
+                <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
+                  <div className="relative">
+                    <Avatar className="h-32 w-32 ring-4 ring-white/40 shadow-xl">
+                      <AvatarImage src={getMediaUrl(user.avatarUrl)} />
+                      <AvatarFallback className="bg-white text-indigo-600 text-3xl">
+                        {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploadingAvatar}
+                      className="absolute bottom-0 right-0 p-2 bg-white text-indigo-700 rounded-full shadow-md hover:bg-indigo-50 transition-colors"
                     >
-                      <Wallet className="h-4 w-4 mr-2" />
-                      Wallet
-                    </Button>
-                  )}
-                  <Button
-                    variant={isEditing ? 'outline' : 'default'}
-                    onClick={() => {
-                      if (isEditing) {
-                        reset();
-                      }
-                      setIsEditing(!isEditing);
-                    }}
-                    className={isEditing ? '' : 'bg-indigo-600 hover:bg-indigo-700'}
-                  >
-                    {isEditing ? (
-                      <>
-                        <X className="h-4 w-4 mr-2" />
-                        Cancel
-                      </>
-                    ) : (
-                      <>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit Profile
-                      </>
+                      {isUploadingAvatar ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Camera className="h-4 w-4" />
+                      )}
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarChange}
+                      className="hidden"
+                    />
+                  </div>
+
+                  <div className="flex-1 text-center md:text-left">
+                    <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
+                      <h1 className="text-2xl font-bold">{user.firstName} {user.lastName}</h1>
+                      <Badge variant="secondary" className="capitalize w-fit mx-auto md:mx-0 bg-white/20 text-white border-white/30">
+                        {user.role}
+                      </Badge>
+                      {user.emailVerified && (
+                        <Badge className="bg-white/20 text-white w-fit mx-auto md:mx-0 border border-white/30">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Verified
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-white/80 mb-4">{user.email}</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                      <div className="rounded-xl bg-white/15 px-3 py-2">
+                        <p className="text-white/70 text-xs">Rating</p>
+                        <p className="font-semibold">
+                          {averageRating ? `${averageRating} ★` : '—'}
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-white/15 px-3 py-2">
+                        <p className="text-white/70 text-xs">Reviews</p>
+                        <p className="font-semibold">{totalReviews}</p>
+                      </div>
+                      <div className="rounded-xl bg-white/15 px-3 py-2">
+                        <p className="text-white/70 text-xs">Skills</p>
+                        <p className="font-semibold">{skillsCount}</p>
+                      </div>
+                      {user.role === 'FREELANCER' && (
+                        <div className="rounded-xl bg-white/15 px-3 py-2">
+                          <p className="text-white/70 text-xs">Wallet</p>
+                          <p className="font-semibold">{walletBalance ? `${walletBalance} ETB` : '0.00 ETB'}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {user.role === 'FREELANCER' && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setActiveTab('wallet')}
+                        className="border-white/40 text-white hover:bg-white/10"
+                      >
+                        <Wallet className="h-4 w-4 mr-2" />
+                        Wallet
+                      </Button>
                     )}
-                  </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        if (isEditing) {
+                          reset();
+                        }
+                        setIsEditing(!isEditing);
+                      }}
+                      className="border-white/40 text-white hover:bg-white/10"
+                    >
+                      {isEditing ? (
+                        <>
+                          <X className="h-4 w-4 mr-2" />
+                          Cancel
+                        </>
+                      ) : (
+                        <>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit Profile
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>
