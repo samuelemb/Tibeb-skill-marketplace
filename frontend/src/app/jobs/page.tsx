@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import Header from '@/components/layout/Header';
@@ -58,30 +58,42 @@ const JobsList: React.FC = () => {
   const [budgetRange, setBudgetRange] = useState([0, 10000]);
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
+  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
 
-  const filters: JobFilters = {
-    search: searchQuery || undefined,
-    category: category !== 'All Categories' ? categoryMap[category] : undefined,
-    minBudget: budgetRange[0] > 0 ? budgetRange[0] : undefined,
-    maxBudget: budgetRange[1] < 10000 ? budgetRange[1] : undefined,
-    sortBy: sortBy as JobFilters['sortBy'],
-  };
+  const filters: JobFilters = useMemo(
+    () => ({
+      search: debouncedSearch || undefined,
+      category: category !== 'All Categories' ? categoryMap[category] : undefined,
+      minBudget: budgetRange[0] > 0 ? budgetRange[0] : undefined,
+      maxBudget: budgetRange[1] < 10000 ? budgetRange[1] : undefined,
+      sortBy: sortBy as JobFilters['sortBy'],
+    }),
+    [debouncedSearch, category, budgetRange, sortBy]
+  );
 
   const { data: jobsData, isLoading } = useQuery({
     queryKey: ['jobs', filters, page],
     queryFn: () => jobsApi.getAll(filters, page, 12),
   });
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
     setPage(1);
     const params = new URLSearchParams();
-    if (searchQuery) params.set('search', searchQuery);
+    if (debouncedSearch) params.set('search', debouncedSearch);
     if (category !== 'All Categories') params.set('category', category);
     if (sortBy) params.set('sortBy', sortBy);
+    if (budgetRange[0] > 0) params.set('minBudget', String(budgetRange[0]));
+    if (budgetRange[1] < 10000) params.set('maxBudget', String(budgetRange[1]));
     const query = params.toString();
-    router.push(query ? `/jobs?${query}` : '/jobs');
-  };
+    router.replace(query ? `/jobs?${query}` : '/jobs');
+  }, [debouncedSearch, category, sortBy, budgetRange, router]);
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -130,7 +142,7 @@ const JobsList: React.FC = () => {
 
           {/* Search and Filters */}
           <div className="bg-white rounded-xl shadow-sm border p-4 mb-6">
-            <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
+            <form onSubmit={(e) => e.preventDefault()} className="flex flex-col md:flex-row gap-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input
@@ -162,7 +174,7 @@ const JobsList: React.FC = () => {
                   <SelectItem value="relevance">Relevance</SelectItem>
                 </SelectContent>
               </Select>
-              <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">
+              <Button type="button" className="bg-indigo-600 hover:bg-indigo-700">
                 <Search className="h-4 w-4 mr-2" />
                 Search
               </Button>

@@ -448,23 +448,39 @@ const JobDetail: React.FC = () => {
                   <div className="prose max-w-none">
                     <p className="whitespace-pre-wrap break-words text-gray-700">{job.description}</p>
                   </div>
-                  {(job.requiredSkills || job.timeline) && (
-                    <div className="mt-4 space-y-2 text-sm text-gray-600">
-                      {job.requiredSkills && (
-                        <p>
-                          <span className="font-medium text-gray-700">Required skills:</span>{' '}
-                          {job.requiredSkills}
-                        </p>
-                      )}
-                      {job.timeline && (
-                        <p>
-                          <span className="font-medium text-gray-700">Timeline:</span> {job.timeline}
-                        </p>
-                      )}
-                    </div>
-                  )}
                 </CardContent>
               </Card>
+
+              {(job.requiredSkills || job.timeline) && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Skills</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {job.requiredSkills && (
+                      <div className="flex flex-wrap gap-2">
+                        {job.requiredSkills
+                          .split(',')
+                          .map((skill) => skill.trim())
+                          .filter(Boolean)
+                          .map((skill) => (
+                            <span
+                              key={skill}
+                              className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-indigo-600"
+                            >
+                              {skill}
+                            </span>
+                          ))}
+                      </div>
+                    )}
+                    {job.timeline && (
+                      <p className="mt-4 text-sm text-gray-600">
+                        <span className="font-medium text-gray-700">Timeline:</span> {job.timeline}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Proposals (for client) */}
               {isOwner && job.status !== 'DRAFT' && proposals && (
