@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -33,6 +34,11 @@ async function adminRequest(path: string, method = 'POST', body?: Record<string,
 }
 
 const AdminPage = () => {
+  const searchParams = useSearchParams();
+  const defaultTab = useMemo(() => {
+    const tab = searchParams.get('tab');
+    return tab || 'users';
+  }, [searchParams]);
   const [userId, setUserId] = useState('');
   const [jobId, setJobId] = useState('');
   const [proposalId, setProposalId] = useState('');
@@ -87,7 +93,7 @@ const AdminPage = () => {
               </CardContent>
             </Card>
 
-            <Tabs defaultValue="users" className="space-y-6">
+            <Tabs defaultValue={defaultTab} className="space-y-6">
               <TabsList>
                 <TabsTrigger value="users">Users</TabsTrigger>
                 <TabsTrigger value="jobs">Jobs</TabsTrigger>
