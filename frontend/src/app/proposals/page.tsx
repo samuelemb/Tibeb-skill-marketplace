@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -27,9 +28,18 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 
 const MyProposals: React.FC = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('all');
   const { user } = useAuth();
+  const selectedProposalId = searchParams.get('proposalId');
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && ['all', 'pending', 'offered', 'accepted', 'rejected'].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   const { data: proposals, isLoading } = useQuery({
     queryKey: ['myProposals', user?.id],
@@ -122,7 +132,7 @@ const MyProposals: React.FC = () => {
   const filteredProposals = filterProposals(activeTab);
 
   const ProposalCard = ({ proposal }: { proposal: Proposal }) => (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className={`hover:shadow-md transition-shadow ${selectedProposalId === proposal.id ? 'ring-2 ring-indigo-500' : ''}`}>
       <CardContent className="p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
