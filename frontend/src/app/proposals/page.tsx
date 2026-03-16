@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -26,7 +26,7 @@ import type { Proposal } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
-const MyProposals: React.FC = () => {
+const MyProposalsContent: React.FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -83,17 +83,17 @@ const MyProposals: React.FC = () => {
   const getStatusBadge = (status: string) => {
     const styles: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
       PENDING: {
-        bg: 'bg-yellow-100', 
+        bg: 'bg-yellow-100',
         text: 'text-yellow-700',
         icon: <Clock className="h-3 w-3 mr-1" />
       },
       ACCEPTED: {
-        bg: 'bg-green-100', 
+        bg: 'bg-green-100',
         text: 'text-green-700',
         icon: <CheckCircle className="h-3 w-3 mr-1" />
       },
       REJECTED: {
-        bg: 'bg-red-100', 
+        bg: 'bg-red-100',
         text: 'text-red-700',
         icon: <XCircle className="h-3 w-3 mr-1" />
       },
@@ -103,7 +103,7 @@ const MyProposals: React.FC = () => {
         icon: <AlertCircle className="h-3 w-3 mr-1" />
       },
       WITHDRAWN: {
-        bg: 'bg-gray-100', 
+        bg: 'bg-gray-100',
         text: 'text-gray-700',
         icon: <AlertCircle className="h-3 w-3 mr-1" />
       },
@@ -136,7 +136,7 @@ const MyProposals: React.FC = () => {
       <CardContent className="p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
-            <h3 
+            <h3
               className="font-semibold text-lg text-gray-900 hover:text-indigo-600 cursor-pointer mb-1"
               onClick={() => router.push(`/jobs/${proposal.jobId}`)}
             >
@@ -190,7 +190,7 @@ const MyProposals: React.FC = () => {
           {proposal.status === 'ACCEPTED' && (
             <Button
               size="sm"
-            onClick={() => router.push(`/messages/${proposal.jobId}?receiverId=${proposal.job?.client?.id || ''}`)}
+              onClick={() => router.push(`/messages/${proposal.jobId}?receiverId=${proposal.job?.client?.id || ''}`)}
               className="bg-indigo-600 hover:bg-indigo-700"
             >
               Message Client
@@ -247,84 +247,92 @@ const MyProposals: React.FC = () => {
   return (
     <ProtectedRoute allowedRoles={['FREELANCER']}>
       <div className="min-h-screen flex flex-col bg-gray-50">
-      <Header />
-      
-      <main className="flex-1 py-8">
-        <div className="container mx-auto px-4">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">My Proposals</h1>
-            <p className="text-gray-600">
-              Track and manage your job proposals
-            </p>
+        <Header />
+
+        <main className="flex-1 py-8">
+          <div className="container mx-auto px-4">
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">My Proposals</h1>
+              <p className="text-gray-600">
+                Track and manage your job proposals
+              </p>
+            </div>
+
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="mb-6">
+                <TabsTrigger value="all">
+                  All ({counts.all})
+                </TabsTrigger>
+                <TabsTrigger value="pending">
+                  Pending ({counts.pending})
+                </TabsTrigger>
+                <TabsTrigger value="offered">
+                  Offered ({counts.offered})
+                </TabsTrigger>
+                <TabsTrigger value="accepted">
+                  Accepted ({counts.accepted})
+                </TabsTrigger>
+                <TabsTrigger value="rejected">
+                  Rejected ({counts.rejected})
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value={activeTab}>
+                {isLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <Card key={i}>
+                        <CardContent className="p-6">
+                          <Skeleton className="h-6 w-3/4 mb-2" />
+                          <Skeleton className="h-4 w-1/4 mb-4" />
+                          <Skeleton className="h-16 w-full mb-4" />
+                          <div className="flex gap-4">
+                            <Skeleton className="h-8 w-24" />
+                            <Skeleton className="h-8 w-24" />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : filteredProposals.length > 0 ? (
+                  <div className="space-y-4">
+                    {filteredProposals.map((proposal) => (
+                      <ProposalCard key={proposal.id} proposal={proposal} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-16">
+                    <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-xl font-medium text-gray-900 mb-2">
+                      {activeTab === 'all' ? 'No proposals yet' : `No ${activeTab} proposals`}
+                    </h3>
+                    <p className="text-gray-600 mb-6">
+                      {activeTab === 'all'
+                        ? 'Start applying to jobs to see your proposals here'
+                        : `You don't have any ${activeTab} proposals at the moment`
+                      }
+                    </p>
+                    <Button onClick={() => router.push('/jobs')} className="bg-indigo-600 hover:bg-indigo-700">
+                      Browse Jobs
+                    </Button>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
+        </main>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-6">
-              <TabsTrigger value="all">
-                All ({counts.all})
-              </TabsTrigger>
-              <TabsTrigger value="pending">
-                Pending ({counts.pending})
-              </TabsTrigger>
-              <TabsTrigger value="offered">
-                Offered ({counts.offered})
-              </TabsTrigger>
-              <TabsTrigger value="accepted">
-                Accepted ({counts.accepted})
-              </TabsTrigger>
-              <TabsTrigger value="rejected">
-                Rejected ({counts.rejected})
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value={activeTab}>
-              {isLoading ? (
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <Card key={i}>
-                      <CardContent className="p-6">
-                        <Skeleton className="h-6 w-3/4 mb-2" />
-                        <Skeleton className="h-4 w-1/4 mb-4" />
-                        <Skeleton className="h-16 w-full mb-4" />
-                        <div className="flex gap-4">
-                          <Skeleton className="h-8 w-24" />
-                          <Skeleton className="h-8 w-24" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : filteredProposals.length > 0 ? (
-                <div className="space-y-4">
-                  {filteredProposals.map((proposal) => (
-                    <ProposalCard key={proposal.id} proposal={proposal} />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-16">
-                  <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-xl font-medium text-gray-900 mb-2">
-                    {activeTab === 'all' ? 'No proposals yet' : `No ${activeTab} proposals`}
-                  </h3>
-                  <p className="text-gray-600 mb-6">
-                    {activeTab === 'all' 
-                      ? 'Start applying to jobs to see your proposals here'
-                      : `You don't have any ${activeTab} proposals at the moment`
-                    }
-                  </p>
-                  <Button onClick={() => router.push('/jobs')} className="bg-indigo-600 hover:bg-indigo-700">
-                    Browse Jobs
-                  </Button>
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
-        </div>
-      </main>
-
-      <Footer />
+        <Footer />
       </div>
     </ProtectedRoute>
+  );
+};
+
+const MyProposals: React.FC = () => {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading proposals...</div>}>
+      <MyProposalsContent />
+    </Suspense>
   );
 };
 

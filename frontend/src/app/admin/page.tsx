@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Header from '@/components/layout/Header';
@@ -33,7 +33,7 @@ async function adminRequest(path: string, method = 'POST', body?: Record<string,
   return response.json();
 }
 
-const AdminPage = () => {
+const AdminConsoleContent = () => {
   const searchParams = useSearchParams();
   const defaultTab = useMemo(() => {
     const tab = searchParams.get('tab');
@@ -387,6 +387,14 @@ const AdminPage = () => {
         <Footer />
       </div>
     </ProtectedRoute>
+  );
+};
+
+const AdminPage = () => {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading admin console...</div>}>
+      <AdminConsoleContent />
+    </Suspense>
   );
 };
 
