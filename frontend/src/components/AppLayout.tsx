@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import Image from "next/image";
 import { useRouter } from 'next/navigation';
@@ -115,6 +115,17 @@ const AppLayout: React.FC = () => {
       router.push(`/jobs?search=${encodeURIComponent(searchQuery)}`);
     }
   };
+
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      router.push(`/jobs?search=${encodeURIComponent(trimmed)}`);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, router]);
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
