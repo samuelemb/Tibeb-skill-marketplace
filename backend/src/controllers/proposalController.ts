@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import {
+  createHireIntent,
   createProposal,
   getProposals,
   getProposalById,
@@ -8,7 +9,7 @@ import {
   rejectOffer,
   withdrawProposal,
 } from '../services/proposalService';
-import { createProposalSchema } from '../utils/validation';
+import { createHireIntentSchema, createProposalSchema } from '../utils/validation';
 import { ProposalStatus } from '@prisma/client';
 
 export async function create(req: Request, res: Response, next: NextFunction) {
@@ -26,13 +27,36 @@ export async function create(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+export async function hireIntent(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = (req as any).user.userId;
+    const userRole = (req as any).user.role;
+    const validatedData = createHireIntentSchema.parse(req.body);
+    const result = await createHireIntent(userId, userRole, validatedData);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: 'Hire request notification sent',
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     const jobId = req.query.jobId as string | undefined;
     const freelancerId = req.query.freelancerId as string | undefined;
     const status = req.query.status as ProposalStatus | undefined;
+    const sort = req.query.sort as string | undefined;
 
-    const proposals = await getProposals({ jobId, freelancerId, status });
+    const proposals = await getProposals({
+      jobId,
+      freelancerId,
+      status,
+      sort: sort === 'rating' ? 'rating' : sort === 'newest' ? 'newest' : undefined,
+    });
 
     res.status(200).json({
       success: true,

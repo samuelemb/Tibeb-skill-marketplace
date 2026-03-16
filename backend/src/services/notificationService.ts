@@ -25,6 +25,9 @@ export const NotificationType = {
   OFFER_ACCEPTED: 'OFFER_ACCEPTED',
   OFFER_REJECTED: 'OFFER_REJECTED',
   NEW_MESSAGE: 'NEW_MESSAGE',
+  PAYMENT: 'PAYMENT',
+  DISPUTE: 'DISPUTE',
+  ADMIN_ALERT: 'ADMIN_ALERT',
   // Legacy types (kept for backward compatibility)
   PROPOSAL: 'proposal',
   PROPOSAL_ACCEPTED: 'proposal_accepted',
@@ -180,6 +183,7 @@ export async function notifyProposalEvent(
   recipientId: string,
   jobTitle: string,
   proposalId: string,
+  jobId: string,
   additionalContext?: string,
   tx?: Prisma.TransactionClient
 ): Promise<void> {
@@ -188,21 +192,25 @@ export async function notifyProposalEvent(
       type: NotificationType.PROPOSAL_RECEIVED,
       title: 'New Proposal Received',
       message: `You received a new proposal for "${jobTitle}"${additionalContext ? ` - ${additionalContext}` : ''}`,
+      link: `/jobs/${jobId}`,
     },
     OFFER_SENT: {
       type: NotificationType.OFFER_SENT,
       title: 'You Received an Offer!',
       message: `You received an offer for "${jobTitle}"${additionalContext ? ` - ${additionalContext}` : ''}`,
+      link: `/proposals?tab=offered&proposalId=${proposalId}`,
     },
     OFFER_ACCEPTED: {
       type: NotificationType.OFFER_ACCEPTED,
       title: 'Offer Accepted - Contract Created',
       message: `Your offer for "${jobTitle}" has been accepted! Contract created.${additionalContext ? ` ${additionalContext}` : ''}`,
+      link: `/proposals?tab=accepted&proposalId=${proposalId}`,
     },
     OFFER_REJECTED: {
       type: NotificationType.OFFER_REJECTED,
       title: 'Offer Rejected',
       message: `Your offer for "${jobTitle}" was rejected${additionalContext ? ` - ${additionalContext}` : ''}`,
+      link: `/proposals?tab=rejected&proposalId=${proposalId}`,
     },
   };
 
@@ -214,7 +222,7 @@ export async function notifyProposalEvent(
       type: config.type,
       title: config.title,
       message: config.message,
-      link: `/contracts`,
+      link: config.link,
       relatedEntityId: proposalId,
     },
     tx
@@ -274,6 +282,7 @@ export async function notifyFreelancerOfferAccepted(
   freelancerId: string,
   jobTitle: string,
   contractId: string,
+  proposalId?: string,
   tx?: Prisma.TransactionClient
 ): Promise<void> {
   await createNotification(
@@ -282,10 +291,34 @@ export async function notifyFreelancerOfferAccepted(
       type: NotificationType.OFFER_ACCEPTED,
       title: 'Offer Accepted!',
       message: `You accepted the offer for "${jobTitle}"`,
-      link: `/contracts`,
+      link: proposalId ? `/proposals?tab=accepted&proposalId=${proposalId}` : `/contracts`,
       relatedEntityId: contractId,
     },
     tx
+  );
+}
+
+export async function notifyAdmins(
+  type: NotificationTypeValue,
+  title: string,
+  message: string,
+  link?: string
+): Promise<void> {
+  const admins = await prisma.user.findMany({
+    where: { role: 'ADMIN' },
+    select: { id: true },
+  });
+
+  await Promise.all(
+    admins.map((admin) =>
+      createNotification({
+        userId: admin.id,
+        type,
+        title,
+        message,
+        link,
+      })
+    )
   );
 }
 

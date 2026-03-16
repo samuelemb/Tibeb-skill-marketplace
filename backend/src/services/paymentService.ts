@@ -1,6 +1,7 @@
 import { prisma } from '../config/database';
 import { NotFoundError, ForbiddenError, ValidationError } from '../utils/errors';
 import { ContractStatus, JobStatus, UserRole } from '@prisma/client';
+import { notifyAdmins, notifyUser, NotificationType } from './notificationService';
 
 const CHAPA_API_URL = 'https://api.chapa.co/v1/transaction';
 const CURRENCY = 'ETB';
@@ -154,6 +155,21 @@ export async function initializeEscrowPayment(jobId: string, userId: string, use
     },
   });
 
+  await notifyUser(
+    job.clientId,
+    NotificationType.PAYMENT,
+    'Escrow Initiated',
+    `Your escrow payment for "${job.title}" has been initiated.`,
+    `/jobs/${job.id}`
+  );
+  await notifyUser(
+    job.contract.freelancerId,
+    NotificationType.PAYMENT,
+    'Escrow Initiated',
+    `Escrow has been initiated for "${job.title}".`,
+    `/jobs/${job.id}`
+  );
+
   return {
     checkoutUrl: escrow.checkoutUrl!,
     txRef: escrow.txRef,
@@ -209,6 +225,21 @@ export async function verifyEscrowPayment(txRef: string) {
       paidAt: new Date(),
     },
   });
+
+  await notifyUser(
+    escrow.clientId,
+    NotificationType.PAYMENT,
+    'Escrow Funded',
+    `Your escrow payment for "${escrow.job.title}" was received.`,
+    `/jobs/${escrow.jobId}`
+  );
+  await notifyUser(
+    escrow.freelancerId,
+    NotificationType.PAYMENT,
+    'Escrow Funded',
+    `Escrow funding for "${escrow.job.title}" is complete.`,
+    `/jobs/${escrow.jobId}`
+  );
 
   return updatedEscrow;
 }
@@ -305,6 +336,27 @@ export async function requestEscrowRefund(
     data: { status: 'HELD' },
   });
 
+  await notifyUser(
+    escrow.clientId,
+    NotificationType.DISPUTE,
+    'Refund Requested',
+    'Your refund request has been submitted and escrow is on hold.',
+    `/jobs/${jobId}`
+  );
+  await notifyUser(
+    escrow.freelancerId,
+    NotificationType.DISPUTE,
+    'Refund Requested',
+    'A refund request was submitted for this job. Escrow is on hold.',
+    `/jobs/${jobId}`
+  );
+  await notifyAdmins(
+    NotificationType.ADMIN_ALERT,
+    'Refund Request Submitted',
+    'A refund request needs review.',
+    `/admin?tab=escrow`
+  );
+
   return updatedEscrow;
 }
 
@@ -312,7 +364,9 @@ export async function openEscrowDispute(
   jobId: string,
   userId: string,
   userRole: UserRole,
-  reason?: string
+  reason?: string,
+  details?: string,
+  evidenceUrls?: string[]
 ) {
   const job = await prisma.job.findUnique({
     where: { id: jobId },
@@ -359,6 +413,8 @@ export async function openEscrowDispute(
       raisedById: userId,
       type: 'DISPUTE',
       reason,
+      details,
+      evidenceUrls: evidenceUrls && evidenceUrls.length > 0 ? evidenceUrls : undefined,
     },
   });
 
@@ -366,6 +422,27 @@ export async function openEscrowDispute(
     where: { id: escrow.id },
     data: { status: 'DISPUTED' },
   });
+
+  await notifyUser(
+    escrow.clientId,
+    NotificationType.DISPUTE,
+    'Escrow Dispute Opened',
+    'A dispute has been opened for this job.',
+    `/jobs/${jobId}`
+  );
+  await notifyUser(
+    escrow.freelancerId,
+    NotificationType.DISPUTE,
+    'Escrow Dispute Opened',
+    'A dispute has been opened for this job.',
+    `/jobs/${jobId}`
+  );
+  await notifyAdmins(
+    NotificationType.ADMIN_ALERT,
+    'Escrow Dispute Opened',
+    'An escrow dispute needs review.',
+    `/admin?tab=escrow`
+  );
 
   return dispute;
 }
@@ -420,5 +497,33 @@ export async function releaseEscrowForJob(jobId: string) {
     },
   });
 
+  await notifyUser(
+    escrow.freelancerId,
+    NotificationType.PAYMENT,
+    'Payment Released',
+    'Escrow funds have been released to your wallet.',
+    `/payments`
+  );
+  await notifyUser(
+    escrow.clientId,
+    NotificationType.PAYMENT,
+    'Payment Released',
+    'Escrow funds have been released to the freelancer.',
+    `/jobs/${escrow.jobId}`
+  );
+
   return escrow;
+}
+
+export async function getClientTotalSpent(clientId: string) {
+  const summary = await prisma.escrowPayment.aggregate({
+    where: {
+      clientId,
+      refundedAt: null,
+      status: { in: ['PAID', 'RELEASED', 'HELD', 'DISPUTED'] },
+    },
+    _sum: { amount: true },
+  });
+
+  return summary._sum.amount ? Number(summary._sum.amount) : 0;
 }

@@ -3,6 +3,7 @@ import { CreateJobInput, UpdateJobInput, UpdateJobStatusInput } from '../utils/v
 import { NotFoundError, ForbiddenError, ValidationError } from '../utils/errors';
 import { JobStatus, UserRole, ContractStatus, JobCategory, Prisma } from '@prisma/client';
 import { getPaidEscrowForJob, releaseEscrowForJob } from './paymentService';
+import { notifyAdmins, notifyUser, NotificationType } from './notificationService';
 
 export interface JobSearchFilters {
   status?: JobStatus;
@@ -420,13 +421,22 @@ export async function reportJob(jobId: string, reporterId: string, reason?: stri
     return existingReport;
   }
 
-  return prisma.jobReport.create({
+  const report = await prisma.jobReport.create({
     data: {
       jobId,
       reporterId,
       reason,
     },
   });
+
+  await notifyAdmins(
+    NotificationType.ADMIN_ALERT,
+    'Job Reported',
+    `A job was reported for review.`,
+    `/admin?tab=reports`
+  );
+
+  return report;
 }
 
 export async function updateJob(jobId: string, userId: string, userRole: UserRole, input: UpdateJobInput) {
@@ -577,6 +587,15 @@ export async function updateJobStatus(jobId: string, userId: string, userRole: U
     if (!paidEscrow) {
       throw new ValidationError('Escrow not funded. Please complete payment before starting work.');
     }
+
+    // Notify freelancer that job has started
+    await notifyUser(
+      contract.freelancerId,
+      NotificationType.JOB_STATUS_CHANGE,
+      'Job Started',
+      `The job "${job.title}" is now IN PROGRESS.`,
+      `/jobs/${job.id}`
+    );
   }
 
   // Handle funds release when moving to COMPLETED
@@ -603,6 +622,15 @@ export async function updateJobStatus(jobId: string, userId: string, userRole: U
         completedAt: new Date(),
       },
     });
+
+    // Notify freelancer that job has been completed
+    await notifyUser(
+      contract.freelancerId,
+      NotificationType.JOB_STATUS_CHANGE,
+      'Job Completed',
+      `The job "${job.title}" has been marked COMPLETED.`,
+      `/jobs/${job.id}`
+    );
   }
 
   const updatedJob = await prisma.job.update({

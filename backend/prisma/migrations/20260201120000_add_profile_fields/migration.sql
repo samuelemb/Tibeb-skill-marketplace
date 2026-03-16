@@ -1,0 +1,6 @@
+-- Add profile fields to users
+ALTER TABLE "users"
+  ADD COLUMN IF NOT EXISTS "headline" TEXT,
+  ADD COLUMN IF NOT EXISTS "location" TEXT,
+  ADD COLUMN IF NOT EXISTS "hourlyRate" DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS "bio" TEXT;

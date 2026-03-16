@@ -17,16 +17,28 @@ import portfolioRoutes from './routes/portfolio';
 import userRoutes from './routes/users';
 import paymentRoutes from './routes/payments';
 import walletRoutes from './routes/wallet';
+import contractRoutes from './routes/contracts';
 import adminRoutes from './routes/admin';
 import healthRoutes from './routes/health';
+import supportRoutes from './routes/support';
 
 dotenv.config();
 
 const app = express();
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+const LOCAL_ORIGINS = ['http://localhost:3000', 'http://localhost:8081'];
+const allowedOrigins = new Set([FRONTEND_URL, ...LOCAL_ORIGINS]);
 
 app.use(cors({
-  origin: FRONTEND_URL,
+  origin: (origin, callback) => {
+    if (!origin) {
+      return callback(null, true);
+    }
+    if (allowedOrigins.has(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS not allowed for this origin'));
+  },
   credentials: true,
 }));
 app.use(express.json());
@@ -63,8 +75,10 @@ app.use('/api/portfolio', portfolioRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/wallet', walletRoutes);
+app.use('/api/contracts', contractRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/health', healthRoutes);
+app.use('/api/support', supportRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

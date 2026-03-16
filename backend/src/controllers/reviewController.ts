@@ -55,6 +55,33 @@ export async function getByUser(req: Request, res: Response, next: NextFunction)
 }
 
 /**
+ * Get public reviews for a specific user (no auth required)
+ * GET /api/reviews/user/:userId/public
+ */
+export async function getByUserPublic(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { userId } = req.params;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+    const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
+
+    const result = await getReviewsByUser(userId, {
+      limit,
+      offset,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: result.reviews,
+      averageRating: result.averageRating,
+      totalReviews: result.totalReviews,
+      pagination: result.pagination,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
  * Get average rating for a user
  * GET /api/reviews/user/:userId/average
  */

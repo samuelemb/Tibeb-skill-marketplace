@@ -49,7 +49,91 @@ export const updateProfileSchema = z.object({
   firstName: z.string().min(1, 'First name is required').max(50, 'First name is too long').optional(),
   lastName: z.string().min(1, 'Last name is required').max(50, 'Last name is too long').optional(),
   avatarUrl: z.string().max(500, 'Avatar URL is too long').optional().nullable(),
+  headline: z.string().max(120, 'Headline is too long').optional(),
+  location: z.string().max(120, 'Location is too long').optional(),
+  hourlyRate: z.preprocess(
+    (value) => (value === '' || value === null || value === undefined ? undefined : value),
+    z.coerce.number().nonnegative('Hourly rate must be a positive number').optional()
+  ),
+  bio: z.string().max(2000, 'Bio is too long').optional(),
 });
+
+export const freelancerExperienceLevelSchema = z.enum(['ENTRY', 'INTERMEDIATE', 'EXPERT']);
+export const freelancerAvailabilitySchema = z.enum(['FULL_TIME', 'PART_TIME', 'AS_NEEDED']);
+
+export const freelancerExternalLinkSchema = z.object({
+  title: z.string().trim().min(1, 'Link title is required').max(60, 'Link title is too long'),
+  url: z
+    .string()
+    .trim()
+    .min(1, 'Link URL is required')
+    .max(500, 'Link URL is too long')
+    .url('Link URL must be a valid URL'),
+  });
+
+export const updateFreelancerSetupSchema = z
+  .object({
+    headline: z.string().trim().min(1, 'Headline is required').max(120, 'Headline is too long').optional(),
+    bio: z.string().trim().min(1, 'Bio is required').max(500, 'Bio is too long').optional(),
+    hourlyRate: z.preprocess(
+      (value) => (value === '' || value === null || value === undefined ? undefined : value),
+      z.coerce.number().positive('Hourly rate must be greater than 0').max(100000, 'Hourly rate is too high').optional()
+    ),
+    experienceLevel: freelancerExperienceLevelSchema.optional(),
+    availability: freelancerAvailabilitySchema.optional(),
+    links: z.array(freelancerExternalLinkSchema).max(5, 'You can add up to 5 external links').optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: 'At least one field is required',
+  });
+
+export const clientFocusSchema = z.enum([
+  'LONG_TERM_CONTRACTS',
+  'ONE_TIME_TASKS',
+  'CONSULTANCY',
+]);
+
+export const clientIndustrySchema = z.enum([
+  'ECOMMERCE',
+  'HEALTHCARE',
+  'EDUCATION',
+  'FINTECH',
+  'REAL_ESTATE',
+  'ENTERTAINMENT',
+]);
+
+export const updateClientSetupSchema = z
+  .object({
+    companyName: z
+      .string()
+      .trim()
+      .min(1, 'Company name is required')
+      .max(120, 'Company name is too long')
+      .optional(),
+    shortBio: z
+      .string()
+      .trim()
+      .min(20, 'Short bio must be at least 20 characters')
+      .max(250, 'Short bio is too long')
+      .optional(),
+    industries: z.array(clientIndustrySchema).min(1, 'Select at least one industry').max(6).optional(),
+    focus: clientFocusSchema.optional(),
+    phone: z
+      .string()
+      .trim()
+      .regex(/^\+?[0-9 ]{9,20}$/, 'Phone number must contain only digits and spaces')
+      .optional(),
+    website: z
+      .string()
+      .trim()
+      .url('Website must be a valid URL')
+      .max(500, 'Website URL is too long')
+      .optional()
+      .or(z.literal('')),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: 'At least one field is required',
+  });
 
 // Job Validation Schemas
 export const createJobSchema = z.object({
@@ -92,6 +176,11 @@ export const createProposalSchema = z.object({
   relevantExperience: z.string().min(2, 'Relevant experience is required').max(500, 'Relevant experience is too long'),
   deliveryTime: z.string().min(2, 'Delivery time is required').max(200, 'Delivery time is too long'),
   proposedAmount: z.number().positive('Amount must be positive').optional(),
+});
+
+export const createHireIntentSchema = z.object({
+  freelancerId: z.string().min(1, 'Freelancer ID is required'),
+  jobId: z.string().min(1, 'Job ID is required'),
 });
 
 // Message Validation Schemas
@@ -154,11 +243,15 @@ export type ResendVerificationCodeInput = z.infer<typeof resendVerificationCodeS
 export type RequestPasswordResetInput = z.infer<typeof requestPasswordResetSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+export type UpdateFreelancerSetupInput = z.infer<typeof updateFreelancerSetupSchema>;
+export type FreelancerExternalLinkInput = z.infer<typeof freelancerExternalLinkSchema>;
+export type UpdateClientSetupInput = z.infer<typeof updateClientSetupSchema>;
 export type CreateJobInput = z.infer<typeof createJobSchema>;
 export type UpdateJobInput = z.infer<typeof updateJobSchema>;
 export type UpdateJobStatusInput = z.infer<typeof updateJobStatusSchema>;
 export type ReportJobInput = z.infer<typeof reportJobSchema>;
 export type CreateProposalInput = z.infer<typeof createProposalSchema>;
+export type CreateHireIntentInput = z.infer<typeof createHireIntentSchema>;
 export type CreateMessageInput = z.infer<typeof createMessageSchema>;
 export type CreateReviewInput = z.infer<typeof createReviewSchema>;
 export type AddSkillInput = z.infer<typeof addSkillSchema>;

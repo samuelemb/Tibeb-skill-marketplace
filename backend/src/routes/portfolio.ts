@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
+import multer from 'multer';
+import { uploadPortfolioImage } from '../middleware/upload';
 import {
   getMyPortfolio,
   getPortfolioItem,
@@ -10,6 +12,30 @@ import {
 } from '../controllers/portfolioController';
 
 const router = Router();
+
+const handleMulterError = (req: any, res: any, next: any) => {
+  uploadPortfolioImage.single('image')(req, res, (err: any) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({
+            success: false,
+            error: 'File size too large. Maximum size is 5MB.',
+          });
+        }
+        return res.status(400).json({
+          success: false,
+          error: err.message,
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        error: err.message || 'File upload error',
+      });
+    }
+    next();
+  });
+};
 
 /**
  * @swagger
@@ -182,7 +208,7 @@ router.get('/:id', getPortfolioItem);
  *       401:
  *         description: Unauthorized
  */
-router.post('/', authenticate, createItem);
+router.post('/', authenticate, handleMulterError, createItem);
 
 /**
  * @swagger
@@ -238,7 +264,7 @@ router.post('/', authenticate, createItem);
  *       404:
  *         description: Portfolio item not found
  */
-router.put('/:id', authenticate, updateItem);
+router.put('/:id', authenticate, handleMulterError, updateItem);
 
 /**
  * @swagger

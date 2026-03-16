@@ -186,6 +186,7 @@ export async function sendMessage(senderId: string, input: CreateMessageInput) {
     emitToUser(input.receiverId, 'message:unread-count', {
       unreadCount,
     });
+
   } catch (error) {
     // Don't fail the request if Socket.IO fails
     console.error('Error emitting Socket.IO event:', error);

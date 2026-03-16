@@ -63,6 +63,7 @@ export async function login(req: Request, res: Response, next: NextFunction) {
       });
     }
     next(error);
+    
   }
 }
 
@@ -102,6 +103,10 @@ export async function updateProfile(req: Request, res: Response, next: NextFunct
       firstName: req.body.firstName,
       lastName: req.body.lastName,
       avatarUrl: file ? `/uploads/avatars/${file.filename}` : req.body.avatarUrl,
+      headline: req.body.headline,
+      location: req.body.location,
+      hourlyRate: req.body.hourlyRate,
+      bio: req.body.bio,
     });
 
     const updatedUser = await updateUserProfile(userId, validatedData);

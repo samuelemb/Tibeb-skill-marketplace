@@ -1,4 +1,4 @@
--- CreateTable: Add Review model for Reviews & Ratings feature
+-- Create reviews table (if missing) for ratings and feedback
 CREATE TABLE IF NOT EXISTS "reviews" (
     "id" TEXT NOT NULL,
     "jobId" TEXT NOT NULL,
@@ -8,41 +8,35 @@ CREATE TABLE IF NOT EXISTS "reviews" (
     "comment" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-
     CONSTRAINT "reviews_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
 CREATE INDEX IF NOT EXISTS "reviews_jobId_idx" ON "reviews"("jobId");
-
--- CreateIndex
 CREATE INDEX IF NOT EXISTS "reviews_reviewerId_idx" ON "reviews"("reviewerId");
-
--- CreateIndex
 CREATE INDEX IF NOT EXISTS "reviews_revieweeId_idx" ON "reviews"("revieweeId");
-
--- CreateIndex
 CREATE INDEX IF NOT EXISTS "reviews_rating_idx" ON "reviews"("rating");
-
--- CreateUniqueConstraint: One review per reviewer per job
 CREATE UNIQUE INDEX IF NOT EXISTS "reviews_jobId_reviewerId_key" ON "reviews"("jobId", "reviewerId");
 
--- AddForeignKey
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'reviews_jobId_fkey') THEN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'reviews_jobId_fkey'
+  ) THEN
     ALTER TABLE "reviews" ADD CONSTRAINT "reviews_jobId_fkey"
       FOREIGN KEY ("jobId") REFERENCES "jobs"("id") ON DELETE CASCADE ON UPDATE CASCADE;
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'reviews_reviewerId_fkey') THEN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'reviews_reviewerId_fkey'
+  ) THEN
     ALTER TABLE "reviews" ADD CONSTRAINT "reviews_reviewerId_fkey"
       FOREIGN KEY ("reviewerId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'reviews_revieweeId_fkey') THEN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'reviews_revieweeId_fkey'
+  ) THEN
     ALTER TABLE "reviews" ADD CONSTRAINT "reviews_revieweeId_fkey"
       FOREIGN KEY ("revieweeId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
   END IF;
 END $$;
-

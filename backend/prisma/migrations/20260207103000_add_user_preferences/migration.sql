@@ -1,0 +1,10 @@
+ALTER TABLE "public"."users"
+ADD COLUMN "language" TEXT NOT NULL DEFAULT 'en',
+ADD COLUMN "pushNewMessages" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN "pushProjectUpdates" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN "pushPaymentAlerts" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN "pushMarketing" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN "emailNewMessages" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN "emailProjectUpdates" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN "emailPaymentAlerts" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN "emailMarketing" BOOLEAN NOT NULL DEFAULT false;

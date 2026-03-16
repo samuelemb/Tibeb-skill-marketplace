@@ -1,10 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
+import { getDisputeEvidenceUrl } from '../middleware/upload';
 import {
   initializeEscrowPayment,
   verifyEscrowPayment,
   getLatestEscrowForJob,
   requestEscrowRefund,
   openEscrowDispute,
+  getClientTotalSpent,
 } from '../services/paymentService';
 import { prisma } from '../config/database';
 import { ForbiddenError, NotFoundError } from '../utils/errors';
@@ -103,12 +105,20 @@ export async function refundEscrow(req: Request, res: Response, next: NextFuncti
  */
 export async function disputeEscrow(req: Request, res: Response, next: NextFunction) {
   try {
+    if ((req as any).fileValidationError) {
+      return res.status(400).json({ success: false, message: (req as any).fileValidationError });
+    }
     const { jobId } = req.params;
     const userId = (req as any).user.userId;
     const userRole = (req as any).user.role;
     const reason = req.body?.reason as string | undefined;
+    const details = req.body?.details as string | undefined;
+    const evidenceFiles = (req.files as Express.Multer.File[] | undefined) || [];
+    const evidenceUrls = evidenceFiles
+      .map((file) => getDisputeEvidenceUrl(file.filename))
+      .filter((url): url is string => Boolean(url));
 
-    const result = await openEscrowDispute(jobId, userId, userRole, reason);
+    const result = await openEscrowDispute(jobId, userId, userRole, reason, details, evidenceUrls);
 
     res.status(200).json({
       success: true,
@@ -130,6 +140,22 @@ export async function chapaWebhook(req: Request, res: Response, next: NextFuncti
     }
 
     res.status(200).json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getPaymentSummary(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = (req as any).user.userId;
+    const totalSpent = await getClientTotalSpent(userId);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalSpent,
+      },
+    });
   } catch (error) {
     next(error);
   }

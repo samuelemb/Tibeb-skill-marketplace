@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   create,
   getByUser,
+  getByUserPublic,
   getAverageRating,
 } from '../controllers/reviewController';
 import { authenticate } from '../middleware/auth';
@@ -88,6 +89,7 @@ router.post('/', authenticate, create);
  *         description: User not found
  */
 router.get('/user/:userId', authenticate, getByUser);
+router.get('/user/:userId/public', getByUserPublic);
 
 /**
  * @swagger

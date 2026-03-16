@@ -15,6 +15,7 @@ import {
   rejectEscrowDispute,
   listJobReports,
   resolveJobReport,
+  getAdminDashboardSummary,
 } from '../services/adminService';
 import { createAdminSchema } from '../utils/validation';
 import { ValidationError } from '../utils/errors';
@@ -206,6 +207,15 @@ export async function resolveJobReportHandler(req: Request, res: Response, next:
     }
     const report = await resolveJobReport(id, actorId, status, reason);
     res.status(200).json({ success: true, data: report });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function dashboardSummaryHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const summary = await getAdminDashboardSummary();
+    res.status(200).json({ success: true, data: summary });
   } catch (error) {
     next(error);
   }

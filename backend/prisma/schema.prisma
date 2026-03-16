@@ -48,6 +48,33 @@ enum JobCategory {
   OTHER
 }
 
+enum ExperienceLevel {
+  ENTRY
+  INTERMEDIATE
+  EXPERT
+}
+
+enum Availability {
+  FULL_TIME
+  PART_TIME
+  AS_NEEDED
+}
+
+enum ClientFocus {
+  LONG_TERM_CONTRACTS
+  ONE_TIME_TASKS
+  CONSULTANCY
+}
+
+enum ClientIndustry {
+  ECOMMERCE
+  HEALTHCARE
+  EDUCATION
+  FINTECH
+  REAL_ESTATE
+  ENTERTAINMENT
+}
+
 model User {
   id                  String    @id @default(cuid())
   email               String    @unique
@@ -55,6 +82,30 @@ model User {
   firstName           String
   lastName            String
   avatarUrl           String? // Optional avatar image URL
+  headline            String?
+  location            String?
+  hourlyRate          Float?
+  bio                 String? @db.Text
+  experienceLevel     ExperienceLevel?
+  availability        Availability?
+  profileSetupCompleted Boolean @default(false)
+  profileSetupCompletedAt DateTime?
+  clientCompanyName   String?
+  clientPhone         String?
+  clientWebsite       String?
+  clientFocus         ClientFocus?
+  clientSetupCompleted Boolean @default(false)
+  clientSetupCompletedAt DateTime?
+  language            String    @default("en")
+  theme               String    @default("light")
+  pushNewMessages     Boolean   @default(true)
+  pushProjectUpdates  Boolean   @default(true)
+  pushPaymentAlerts   Boolean   @default(true)
+  pushMarketing       Boolean   @default(false)
+  emailNewMessages    Boolean   @default(false)
+  emailProjectUpdates Boolean   @default(true)
+  emailPaymentAlerts  Boolean   @default(true)
+  emailMarketing      Boolean   @default(false)
   role                UserRole  // Immutable - set on registration (BR-1)
   isSuspended         Boolean   @default(false)
   suspendedReason     String?
@@ -83,12 +134,14 @@ model User {
   reviewsReceived       Review[]       @relation("Reviewee")
   skills                UserSkill[]
   portfolioItems        PortfolioItem[]
+  externalLinks         FreelancerExternalLink[]
+  clientIndustryPreferences ClientIndustryPreference[]
   wallet                Wallet?
-    escrowsAsClient        EscrowPayment[] @relation("EscrowClient")
-    escrowsAsFreelancer    EscrowPayment[] @relation("EscrowFreelancer")
-    escrowDisputesRaised   EscrowDispute[] @relation("EscrowDisputesRaised")
-    jobReports             JobReport[] @relation("JobReportReporter")
-    auditLogs             AuditLog[] @relation("AuditActor")
+  escrowsAsClient        EscrowPayment[] @relation("EscrowClient")
+  escrowsAsFreelancer    EscrowPayment[] @relation("EscrowFreelancer")
+  escrowDisputesRaised   EscrowDispute[] @relation("EscrowDisputesRaised")
+  jobReports             JobReport[] @relation("JobReportReporter")
+  auditLogs              AuditLog[] @relation("AuditActor")
 
   @@map("users")
 }
@@ -298,6 +351,33 @@ model PortfolioItem {
   @@map("portfolio_items")
 }
 
+model FreelancerExternalLink {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  url       String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("freelancer_external_links")
+}
+
+model ClientIndustryPreference {
+  id        String         @id @default(cuid())
+  userId    String
+  industry  ClientIndustry
+  createdAt DateTime       @default(now())
+
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, industry])
+  @@index([userId])
+  @@map("client_industry_preferences")
+}
+
 model Wallet {
   id        String   @id @default(cuid())
   userId    String   @unique
@@ -401,6 +481,8 @@ model EscrowDispute {
   type           EscrowDisputeType
   status         EscrowDisputeStatus @default(OPEN)
   reason         String?  @db.Text
+  details        String?  @db.Text
+  evidenceUrls   String[] @default([])
   createdAt      DateTime @default(now())
   resolvedAt     DateTime?
 

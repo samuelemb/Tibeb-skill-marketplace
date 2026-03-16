@@ -66,7 +66,18 @@ export async function getPortfolioItem(req: Request, res: Response, next: NextFu
 export async function createItem(req: Request, res: Response, next: NextFunction) {
   try {
     const userId = (req as any).user.userId;
-    const validatedData = createPortfolioItemSchema.parse(req.body);
+    if ((req as any).fileValidationError) {
+      return res.status(400).json({
+        success: false,
+        error: (req as any).fileValidationError,
+      });
+    }
+
+    const file = (req as any).file;
+    const validatedData = createPortfolioItemSchema.parse({
+      ...req.body,
+      imageUrl: file ? `/uploads/portfolio/${file.filename}` : req.body.imageUrl,
+    });
     const portfolioItem = await createPortfolioItem(userId, validatedData);
     res.status(201).json({
       success: true,
@@ -90,7 +101,18 @@ export async function updateItem(req: Request, res: Response, next: NextFunction
   try {
     const userId = (req as any).user.userId;
     const { id } = req.params;
-    const validatedData = updatePortfolioItemSchema.parse(req.body);
+    if ((req as any).fileValidationError) {
+      return res.status(400).json({
+        success: false,
+        error: (req as any).fileValidationError,
+      });
+    }
+
+    const file = (req as any).file;
+    const validatedData = updatePortfolioItemSchema.parse({
+      ...req.body,
+      imageUrl: file ? `/uploads/portfolio/${file.filename}` : req.body.imageUrl,
+    });
     const portfolioItem = await updatePortfolioItem(userId, id, validatedData);
     res.status(200).json({
       success: true,

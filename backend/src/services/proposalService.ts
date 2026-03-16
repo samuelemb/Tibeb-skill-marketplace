@@ -1,8 +1,8 @@
 import { prisma } from '../config/database';
-import { CreateProposalInput } from '../utils/validation';
+import { CreateHireIntentInput, CreateProposalInput } from '../utils/validation';
 import { NotFoundError, ForbiddenError, ValidationError, ConflictError } from '../utils/errors';
 import { UserRole, JobStatus, ProposalStatus, ContractStatus } from '@prisma/client';
-import { notifyProposalEvent, notifyFreelancerOfferAccepted } from './notificationService';
+import { NotificationType, notifyProposalEvent, notifyFreelancerOfferAccepted, notifyUser } from './notificationService';
 
 export async function createProposal(freelancerId: string, input: CreateProposalInput) {
   // Use transaction to ensure atomicity - all operations succeed or all fail
@@ -86,6 +86,7 @@ export async function createProposal(freelancerId: string, input: CreateProposal
         job.clientId,
         job.title,
         proposal.id,
+        job.id,
         undefined,
         tx
       );
@@ -99,6 +100,7 @@ export async function getProposals(filters?: {
   jobId?: string;
   freelancerId?: string;
   status?: ProposalStatus;
+  sort?: 'newest' | 'rating';
 }) {
   const where: any = {};
 
@@ -135,6 +137,10 @@ export async function getProposals(filters?: {
           email: true,
           firstName: true,
           lastName: true,
+          reviewsReceived: {
+            where: { isHidden: false },
+            select: { rating: true },
+          },
         },
       },
       contract: true,
@@ -144,7 +150,32 @@ export async function getProposals(filters?: {
     },
   });
 
-  return proposals;
+  const withRatings = proposals.map((proposal) => {
+    const ratings = proposal.freelancer?.reviewsReceived || [];
+    const totalReviews = ratings.length;
+    const averageRating =
+      totalReviews === 0 ? 0 : ratings.reduce((sum, r) => sum + r.rating, 0) / totalReviews;
+    return {
+      ...proposal,
+      freelancer: proposal.freelancer
+        ? {
+            ...proposal.freelancer,
+            averageRating,
+            totalReviews,
+          }
+        : proposal.freelancer,
+    };
+  });
+
+  if (filters?.sort === 'rating') {
+    return withRatings.sort(
+      (a, b) =>
+        (b.freelancer?.averageRating ?? 0) - (a.freelancer?.averageRating ?? 0)
+    );
+  }
+
+  return withRatings;
+
 }
 
 export async function getProposalById(proposalId: string) {
@@ -282,6 +313,7 @@ export async function sendOffer(proposalId: string, clientId: string, userRole: 
       proposal.freelancerId,
       proposal.job.title,
       proposalId,
+      proposal.jobId,
       undefined
     );
   }
@@ -381,7 +413,8 @@ export async function acceptProposal(proposalId: string, userId: string, userRol
   await notifyFreelancerOfferAccepted(
     proposal.freelancerId,
     proposal.job.title,
-    result.contract.id
+    result.contract.id,
+    proposalId
   );
 
   // Notify client that their offer was accepted
@@ -392,6 +425,7 @@ export async function acceptProposal(proposalId: string, userId: string, userRol
       proposal.job.clientId,
       proposal.job.title,
       proposalId,
+      proposal.jobId,
       undefined
     );
   }
@@ -516,6 +550,7 @@ export async function rejectOffer(proposalId: string, freelancerId: string, user
       proposal.job.clientId,
       proposal.job.title,
       proposalId,
+      proposal.jobId,
       undefined
     );
   }
@@ -549,5 +584,62 @@ export async function withdrawProposal(proposalId: string, freelancerId: string,
   });
 
   return { message: 'Proposal withdrawn successfully' };
+}
+
+/**
+ * Client sends a "hire intent" notification to a freelancer for a specific job.
+ * This does not create a proposal/contract; it prompts the freelancer to submit a proposal.
+ */
+export async function createHireIntent(clientId: string, userRole: UserRole, input: CreateHireIntentInput) {
+  if (userRole !== UserRole.CLIENT) {
+    throw new ForbiddenError('Only clients can send hire requests');
+  }
+
+  const [job, freelancer, client] = await Promise.all([
+    prisma.job.findUnique({
+      where: { id: input.jobId },
+      select: { id: true, title: true, clientId: true, status: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: input.freelancerId },
+      select: { id: true, role: true, firstName: true, lastName: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: clientId },
+      select: { firstName: true, lastName: true },
+    }),
+  ]);
+
+  if (!job) {
+    throw new NotFoundError('Job not found');
+  }
+  if (job.clientId !== clientId) {
+    throw new ForbiddenError('You can only send hire requests for your own job');
+  }
+  if (job.status !== JobStatus.OPEN) {
+    throw new ValidationError('Hire request can only be sent for OPEN jobs');
+  }
+  if (!freelancer || freelancer.role !== UserRole.FREELANCER) {
+    throw new ValidationError('Target user must be a freelancer');
+  }
+  if (freelancer.id === clientId) {
+    throw new ValidationError('You cannot send a hire request to yourself');
+  }
+
+  const clientName = client ? `${client.firstName} ${client.lastName}`.trim() : 'A client';
+
+  await notifyUser(
+    freelancer.id,
+    NotificationType.OFFER_SENT,
+    'A client wants to hire you',
+    `${clientName} wants to hire you for "${job.title}". Open the job and send your proposal.`,
+    `/jobs/${job.id}`
+  );
+
+  return {
+    sent: true,
+    freelancerId: freelancer.id,
+    jobId: job.id,
+  };
 }
 

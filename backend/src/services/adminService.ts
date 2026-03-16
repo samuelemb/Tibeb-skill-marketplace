@@ -2,6 +2,7 @@ import { prisma } from '../config/database';
 import { NotFoundError, ValidationError } from '../utils/errors';
 import { ContractStatus, JobStatus } from '@prisma/client';
 import { recordAuditLog } from './auditLogService';
+import { notifyAdmins, notifyUser, NotificationType } from './notificationService';
 import bcrypt from 'bcryptjs';
 import { CreateAdminInput } from '../utils/validation';
 
@@ -233,6 +234,21 @@ export async function holdEscrow(jobId: string, actorId: string, reason?: string
     data: { status: 'HELD' },
   });
 
+  await notifyUser(
+    escrow.clientId,
+    NotificationType.DISPUTE,
+    'Escrow Held',
+    'An admin has placed the escrow on hold.',
+    `/jobs/${jobId}`
+  );
+  await notifyUser(
+    escrow.freelancerId,
+    NotificationType.DISPUTE,
+    'Escrow Held',
+    'An admin has placed the escrow on hold.',
+    `/jobs/${jobId}`
+  );
+
   await recordAuditLog({
     actorId,
     action: 'ESCROW_HELD',
@@ -299,6 +315,21 @@ export async function releaseEscrow(jobId: string, actorId: string, reason?: str
 
   await resolveDisputeForEscrow(escrow, reason);
 
+  await notifyUser(
+    escrow.freelancerId,
+    NotificationType.PAYMENT,
+    'Payment Released',
+    'Escrow funds have been released to your wallet.',
+    `/payments`
+  );
+  await notifyUser(
+    escrow.clientId,
+    NotificationType.PAYMENT,
+    'Payment Released',
+    'Escrow funds have been released to the freelancer.',
+    `/jobs/${jobId}`
+  );
+
   await recordAuditLog({
     actorId,
     action: 'ESCROW_RELEASED',
@@ -335,6 +366,21 @@ export async function refundEscrow(jobId: string, actorId: string, reason?: stri
   });
 
   await resolveDisputeForEscrow(escrow, reason);
+
+  await notifyUser(
+    escrow.clientId,
+    NotificationType.PAYMENT,
+    'Escrow Refunded',
+    'The escrow payment has been refunded.',
+    `/jobs/${jobId}`
+  );
+  await notifyUser(
+    escrow.freelancerId,
+    NotificationType.PAYMENT,
+    'Escrow Refunded',
+    'The escrow payment has been refunded.',
+    `/jobs/${jobId}`
+  );
 
   await recordAuditLog({
     actorId,
@@ -380,6 +426,21 @@ export async function rejectEscrowDispute(jobId: string, actorId: string, reason
     entityId: escrow.id,
     metadata: { jobId, reason },
   });
+
+  await notifyUser(
+    escrow.clientId,
+    NotificationType.DISPUTE,
+    'Dispute Rejected',
+    'An admin rejected the dispute.',
+    `/jobs/${jobId}`
+  );
+  await notifyUser(
+    escrow.freelancerId,
+    NotificationType.DISPUTE,
+    'Dispute Rejected',
+    'An admin rejected the dispute.',
+    `/jobs/${jobId}`
+  );
 
   return escrow;
 }
@@ -429,4 +490,46 @@ export async function resolveJobReport(reportId: string, actorId: string, status
   });
 
   return updated;
+}
+
+export async function getAdminDashboardSummary() {
+  const [
+    openReports,
+    totalReports,
+    openDisputes,
+    heldEscrows,
+    disputedEscrows,
+    suspendedUsers,
+    hiddenJobs,
+    hiddenProposals,
+    hiddenReviews,
+  ] = await Promise.all([
+    prisma.jobReport.count({ where: { status: 'OPEN' } }),
+    prisma.jobReport.count(),
+    prisma.escrowDispute.count({ where: { status: 'OPEN' } }),
+    prisma.escrowPayment.count({ where: { status: 'HELD' } }),
+    prisma.escrowPayment.count({ where: { status: 'DISPUTED' } }),
+    prisma.user.count({ where: { isSuspended: true } }),
+    prisma.job.count({ where: { isHidden: true } }),
+    prisma.proposal.count({ where: { isHidden: true } }),
+    prisma.review.count({ where: { isHidden: true } }),
+  ]);
+
+  return {
+    reports: {
+      open: openReports,
+      total: totalReports,
+    },
+    escrow: {
+      openDisputes,
+      held: heldEscrows,
+      disputed: disputedEscrows,
+    },
+    moderation: {
+      suspendedUsers,
+      hiddenJobs,
+      hiddenProposals,
+      hiddenReviews,
+    },
+  };
 }

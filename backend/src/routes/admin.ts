@@ -17,6 +17,7 @@ import {
   rejectEscrowHandler,
   listJobReportsHandler,
   resolveJobReportHandler,
+  dashboardSummaryHandler,
 } from '../controllers/adminController';
 
 const router = Router();
@@ -77,5 +78,19 @@ router.post('/escrow/:jobId/reject', authenticate, requireRole(UserRole.ADMIN), 
 
 router.get('/reports', authenticate, requireRole(UserRole.ADMIN), listJobReportsHandler);
 router.patch('/reports/:id', authenticate, requireRole(UserRole.ADMIN), resolveJobReportHandler);
+
+/**
+ * @swagger
+ * /api/admin/dashboard-summary:
+ *   get:
+ *     summary: Get admin dashboard summary metrics
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Admin dashboard metrics
+ */
+router.get('/dashboard-summary', authenticate, requireRole(UserRole.ADMIN), dashboardSummaryHandler);
 
 export default router;

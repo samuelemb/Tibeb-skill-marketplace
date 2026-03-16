@@ -532,6 +532,10 @@ const swaggerDefinition: SwaggerDefinition = {
       description: 'Notification management endpoints',
     },
     {
+      name: 'Support',
+      description: 'Help, FAQ, and support channel endpoints',
+    },
+    {
       name: 'Health',
       description: 'Health check endpoint',
     },

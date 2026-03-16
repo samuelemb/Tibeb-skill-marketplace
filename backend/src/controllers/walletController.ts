@@ -1,14 +1,20 @@
 import { Request, Response, NextFunction } from 'express';
-import { getWallet, getWalletTransactions } from '../services/walletService';
+import { getWalletSummary, getWalletTransactions } from '../services/walletService';
 
 export async function getMyWallet(req: Request, res: Response, next: NextFunction) {
   try {
     const userId = (req as any).user.userId;
-    const wallet = await getWallet(userId);
+    const summary = await getWalletSummary(userId);
 
     res.status(200).json({
       success: true,
-      data: wallet,
+      data: {
+        ...summary.wallet,
+        totalEarnings: summary.totalEarnings,
+        inEscrowBalance: summary.inEscrowBalance,
+        availableBalance: summary.availableBalance,
+        totalBalance: summary.totalBalance,
+      },
     });
   } catch (error) {
     next(error);

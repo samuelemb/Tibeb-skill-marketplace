@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authenticate, requireRole } from '../middleware/auth';
 import { UserRole } from '@prisma/client';
+import { uploadDisputeEvidence } from '../middleware/upload';
 import {
   initEscrow,
   verifyEscrow,
@@ -8,6 +9,7 @@ import {
   getEscrowStatus,
   refundEscrow,
   disputeEscrow,
+  getPaymentSummary,
 } from '../controllers/paymentController';
 
 const router = Router();
@@ -107,11 +109,46 @@ router.post('/escrow/:jobId/refund', authenticate, requireRole(UserRole.CLIENT),
  *         required: true
  *         schema:
  *           type: string
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reason:
+ *                 type: string
+ *               details:
+ *                 type: string
+ *               evidence:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
  *     responses:
  *       200:
  *         description: Dispute opened
  */
-router.post('/escrow/:jobId/dispute', authenticate, disputeEscrow);
+router.post(
+  '/escrow/:jobId/dispute',
+  authenticate,
+  uploadDisputeEvidence.array('evidence', 5),
+  disputeEscrow
+);
+
+/**
+ * @swagger
+ * /api/payments/summary:
+ *   get:
+ *     summary: Get payment summary for the current client
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Payment summary
+ */
+router.get('/summary', authenticate, requireRole(UserRole.CLIENT), getPaymentSummary);
 
 /**
  * @swagger

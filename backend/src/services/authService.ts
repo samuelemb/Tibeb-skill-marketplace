@@ -31,6 +31,14 @@ export interface AuthResponse {
     firstName: string;
     lastName: string;
     avatarUrl: string | null;
+    headline?: string | null;
+    location?: string | null;
+    hourlyRate?: number | null;
+    bio?: string | null;
+    experienceLevel?: 'ENTRY' | 'INTERMEDIATE' | 'EXPERT' | null;
+    availability?: 'FULL_TIME' | 'PART_TIME' | 'AS_NEEDED' | null;
+    profileSetupCompleted?: boolean;
+    clientSetupCompleted?: boolean;
     role: UserRole;
     emailVerified: boolean;
   };
@@ -57,9 +65,9 @@ export async function registerUser(input: RegisterInput): Promise<AuthResponse> 
   const attemptsExpiry = getVerificationAttemptsExpiry();
 
   // Create user
-  const user = await prisma.user.create({
-    data: {
-      email: input.email,
+    const user = await prisma.user.create({
+      data: {
+        email: input.email,
       password: hashedPassword,
       firstName: input.firstName,
       lastName: input.lastName,
@@ -70,17 +78,25 @@ export async function registerUser(input: RegisterInput): Promise<AuthResponse> 
       emailVerificationAttemptsExpiresAt: attemptsExpiry,
       emailVerified: false, // Default to false
     },
-    select: {
-      id: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-      avatarUrl: true,
-      role: true,
-      emailVerified: true,
-      createdAt: true,
-    },
-  });
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        avatarUrl: true,
+        headline: true,
+        location: true,
+        hourlyRate: true,
+        bio: true,
+        experienceLevel: true,
+        availability: true,
+        profileSetupCompleted: true,
+        clientSetupCompleted: true,
+        role: true,
+        emailVerified: true,
+        createdAt: true,
+      },
+    });
 
   // Send verification email with code (async, don't wait for it)
   sendVerificationEmail(user.email, input.firstName, verificationCode).catch((error) => {
@@ -89,16 +105,24 @@ export async function registerUser(input: RegisterInput): Promise<AuthResponse> 
   });
 
   // No token returned - user must verify email first
-  return {
-    user: {
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      avatarUrl: user.avatarUrl,
-      role: user.role,
-      emailVerified: user.emailVerified,
-    },
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        avatarUrl: user.avatarUrl,
+        headline: user.headline,
+        location: user.location,
+        hourlyRate: user.hourlyRate,
+        bio: user.bio,
+        experienceLevel: user.experienceLevel,
+        availability: user.availability,
+        profileSetupCompleted: user.profileSetupCompleted,
+        clientSetupCompleted: user.clientSetupCompleted,
+        role: user.role,
+        emailVerified: user.emailVerified,
+      },
     token: '', // No token until email is verified
     requiresVerification: true, // User needs to verify email
   };
@@ -106,19 +130,27 @@ export async function registerUser(input: RegisterInput): Promise<AuthResponse> 
 
 export async function loginUser(input: LoginInput): Promise<AuthResponse> {
   // Find user by email
-  const user = await prisma.user.findUnique({
-    where: { email: input.email },
-    select: {
-      id: true,
-      email: true,
-      password: true,
-      firstName: true,
-      lastName: true,
-      avatarUrl: true,
-      role: true,
-      emailVerified: true,
-    },
-  });
+    const user = await prisma.user.findUnique({
+      where: { email: input.email },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        firstName: true,
+        lastName: true,
+        avatarUrl: true,
+        headline: true,
+        location: true,
+        hourlyRate: true,
+        bio: true,
+        experienceLevel: true,
+        availability: true,
+        profileSetupCompleted: true,
+        clientSetupCompleted: true,
+        role: true,
+        emailVerified: true,
+      },
+    });
 
   if (!user) {
     throw new UnauthorizedError('Invalid email or password');
@@ -165,16 +197,24 @@ export async function loginUser(input: LoginInput): Promise<AuthResponse> {
     role: user.role,
   });
 
-  return {
-    user: {
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      avatarUrl: user.avatarUrl,
-      role: user.role,
-      emailVerified: true,
-    },
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        avatarUrl: user.avatarUrl,
+        headline: user.headline,
+        location: user.location,
+        hourlyRate: user.hourlyRate,
+        bio: user.bio,
+        experienceLevel: user.experienceLevel,
+        availability: user.availability,
+        profileSetupCompleted: user.profileSetupCompleted,
+        clientSetupCompleted: user.clientSetupCompleted,
+        role: user.role,
+        emailVerified: true,
+      },
     token,
     requiresVerification: false,
   };
@@ -189,6 +229,14 @@ export async function getUserById(userId: string) {
       firstName: true,
       lastName: true,
       avatarUrl: true,
+      headline: true,
+      location: true,
+      hourlyRate: true,
+      bio: true,
+      experienceLevel: true,
+      availability: true,
+      profileSetupCompleted: true,
+      clientSetupCompleted: true,
       role: true,
       emailVerified: true,
       createdAt: true,
@@ -261,6 +309,10 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
       ...(input.firstName && { firstName: input.firstName }),
       ...(input.lastName && { lastName: input.lastName }),
       ...(input.avatarUrl !== undefined && { avatarUrl: input.avatarUrl }),
+      ...(input.headline !== undefined && { headline: input.headline }),
+      ...(input.location !== undefined && { location: input.location }),
+      ...(input.hourlyRate !== undefined && { hourlyRate: input.hourlyRate }),
+      ...(input.bio !== undefined && { bio: input.bio }),
     },
     select: {
       id: true,
@@ -268,6 +320,14 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
       firstName: true,
       lastName: true,
       avatarUrl: true,
+      headline: true,
+      location: true,
+      hourlyRate: true,
+      bio: true,
+      experienceLevel: true,
+      availability: true,
+      profileSetupCompleted: true,
+      clientSetupCompleted: true,
       role: true,
       emailVerified: true,
       createdAt: true,

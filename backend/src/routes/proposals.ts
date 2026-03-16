@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+  hireIntent,
   create,
   list,
   getById,
@@ -38,11 +39,18 @@ const router = Router();
  *           type: string
  *           enum: [PENDING, OFFERED, ACCEPTED, REJECTED]
  *         description: Filter by proposal status
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *           enum: [newest, rating]
+ *         description: Sort order
  *     responses:
  *       200:
  *         description: List of proposals
  */
 router.get('/', authenticate, list);
+router.post('/hire-intent', authenticate, requireRole(UserRole.CLIENT), hireIntent);
 
 /**
  * @swagger
